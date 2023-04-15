@@ -1,0 +1,1 @@
+Developing multiple trading strategy
