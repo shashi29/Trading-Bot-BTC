@@ -1,5 +1,6 @@
-import concurrent.futures
+
 import logging
+import multiprocessing as mp
 import sys
 import time
 from datetime import datetime
@@ -53,8 +54,11 @@ def download_ticker_data(ticker: str, period: str, interval: Optional[str] = Non
 
 
 def download_all_data(tickers: List[str], period: str, interval: Optional[str] = None) -> None:
-    for ticker in tickers:
-        download_ticker_data(ticker, period, interval)
+    with mp.Pool() as pool:
+        results = [pool.apply_async(download_ticker_data, args=(ticker, period, interval)) for ticker in tickers]
+        for result in results:
+            result.get()
+
 
 def main():
     tickers = ['BTC-USD', 'ETH-USD', 'USDT-USD', 'BNB-USD', 'USDC-USD', 'XRP-USD', 'ADA-USD', 'DOGE-USD', 'MATIC-USD', 'SOL-USD', 'DOT-USD', 'BUSD-USD', 'LTC-USD', 'SHIB-USD', 'TRX-USD', 'AVAX-USD', 'WBTC-USD', 'LINK-USD', 'FIL-USD', 'TUSD-USD', 'APT21794-USD', 'ARB11841-USD', 'STX4847-USD', 'WBNB-USD', 'CFX-USD', 'GALA-USD', 'ID21846-USD', 'IDEX-USD', 'SRM-USD', 'WETH-USD']
