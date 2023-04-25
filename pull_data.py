@@ -9,6 +9,7 @@ from typing import Optional, List
 import numpy as np
 import pandas as pd
 import yfinance as yf
+import pushbullet
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -66,6 +67,8 @@ def main():
     intraday_period = '60d'
     intraday_interval = '5m'
 
+    pb = pushbullet.Pushbullet("o.cjRUVwPfdrNq1XTK7DJ2lxBh0XgDPU86")
+    pb.push_note("Pull Data", "We starting python script again")
     # Download daily data
     download_all_data(tickers, daily_period)
     logging.info("All daily data downloaded and saved to disk.")
