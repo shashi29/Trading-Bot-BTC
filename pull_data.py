@@ -68,18 +68,21 @@ def main():
     intraday_interval = '5m'
 
     pb = pushbullet.Pushbullet("o.cjRUVwPfdrNq1XTK7DJ2lxBh0XgDPU86")
-    pb.push_note("Pull Data", "We starting python script again")
+    pb.push_note("Pull Data", "Running pull_data.py")
     # Download daily data
     download_all_data(tickers, daily_period)
     logging.info("All daily data downloaded and saved to disk.")
 
     while True:
-        if is_market_open():
-            # Download intraday data
-            download_all_data(tickers, intraday_period, intraday_interval)
-            logging.info("All intraday data downloaded and saved to disk.")
-        else:
-            logging.info("Market is closed. Waiting for the market to open.")
+        try:
+            if is_market_open():
+                # Download intraday data
+                download_all_data(tickers, intraday_period, intraday_interval)
+                logging.info("All intraday data downloaded and saved to disk.")
+            else:
+                logging.info("Market is closed. Waiting for the market to open.")
+        except Exception as ex:
+            continue
 
         time.sleep(5 * 60)  # Sleep for 5 minutes
 

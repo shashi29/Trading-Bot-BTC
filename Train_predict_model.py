@@ -1,46 +1,40 @@
-# Import necessary libraries
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import warnings
-warnings.filterwarnings('ignore')
+import finrl
+from finrl.model import DRLAgent
+from finrl.env.env_stocktrading import StockTradingEnv
 
-from autots import AutoTS
-import plotly.graph_objects as go
-# Create a Plotly figure object
-import plotly.express as px
+# Load the data
+df = pd.read_csv('/workspaces/Trading-Bot-BTC/daily_data/BTC-USD.csv')
 
-def train_predict(df, forecast_length):
-    #df['DATE'] = pd.to_datetime(df['DATE'])
-    #store_data = df.set_index('DATE')
-    store_data = df
-    model = AutoTS(
-        forecast_length=forecast_length,
-        frequency='infer',
-        prediction_interval=0.9,
-        #ensemble=None,
-        model_list="superfast",  # "superfast", "default", "fast_parallel"
-        transformer_list="superfast",  # "superfast",
-        drop_most_recent=1,
-        max_generations=4,
-        num_validations=2,
-        validation_method="backwards"
-    )
+# Split the data into training and testing sets
+train_data = df.iloc[:int(len(df)*0.9)]
+test_data = df.iloc[int(len(df)*0.9):]
 
-    model.fit(store_data['Open'])
-    prediction = model.predict()
-    # point forecasts dataframe
-    forecasts_df = prediction.forecast
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=store_data.index, y=store_data['Open'],
-                    mode='lines+markers',
-                    name='Train'))
-    fig.add_trace(go.Scatter(x=forecasts_df.index, y=forecasts_df['Open'],
-                        mode='lines+markers',
-                        name='Predict'))
-    fig.show()
+# Define the trading environment using the training data
+train_env = finrl.make_env(
+    env_id='StockTradingEnv-v1',
+    df=train_data,
+    mode='train'
+)
 
-df = pd.read_csv("/workspaces/Trading-Bot-BTC/data/BTC-USD.csv")
+# Train an RL algorithm using the training environment
+agent = DRLAgent(env=train_env)
+model = agent.get_model(model_name='ddpg')
+trained_model = agent.train_model(model=model, 
+                                  tb_log_name='ddpg',
+                                  total_timesteps=50000)
 
-train_predict(df, 14)
+# Define the trading environment using the testing data
+test_env = finrl.make_env(
+    env_id='StockTradingEnv-v1',
+    df=test_data,
+    mode='test'
+)
+
+# Evaluate the performance of the trained RL algorithm on the testing environment
+df_account_value, df_actions = DRLAgent.evaluate_model(
+    model=trained_model, 
+    environment=test_env, 
+    num_steps=len(test_data), 
+    verbose=True
+)
