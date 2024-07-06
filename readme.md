@@ -1,24 +1,27 @@
-Developing multiple trading strategy
-
-
-
-To do:
-
-Daily data from start to current date
-
-Pull data every 5 minute
-
-Create cron jobs for these two which run automatically
-
-Deep learning/Auto ts model /combinational model/include new/report to predict next data, next week, next 15 days , next 30 days
-
-Strategy for buy/sell at real time for every 5min
-
-Backtesting
-
-Deploy this to run
-
-Integrate FinRL Bot
-
-Integate live news information
-
+project_root/
+│
+├── main.py
+├── config.py
+├── data/
+│   ├── __init__.py
+│   ├── fetcher.py
+│   └── processor.py
+├── indicators/
+│   ├── __init__.py
+│   ├── ema.py
+│   ├── rsi.py
+│   ├── bollinger_bands.py
+│   ├── dmi.py
+│   └── stochastic.py
+├── patterns/
+│   ├── __init__.py
+│   └── candlestick_patterns.py
+├── analysis/
+│   ├── __init__.py
+│   ├── tide_analysis.py
+│   ├── wave_analysis.py
+│   └── ripple_analysis.py
+├── utils/
+│   ├── __init__.py
+│   └── excel_writer.py
+└── scanner.py
