@@ -11,7 +11,7 @@ def main():
     st.title("Stock Scanner App")
 
     # Input for stock ticker
-    ticker = st.text_input("Enter Stock Ticker:", "AAPL")
+    ticker = st.text_input("Enter Stock Ticker:", "DIXON.NS")
     flag_date = st.date_input("Select Date", datetime.now().date())
     flag_time = st.time_input("Select Time", time(12, 30))
     flag_datetime = datetime.combine(flag_date, flag_time)
