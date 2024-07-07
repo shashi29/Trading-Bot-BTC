@@ -22,7 +22,8 @@ def main():
 
         # Filter and display only rows where Ripple_Status is True
         buy_signals = df_Ripple[(df_Ripple['Ripple_Status'] == True) & (df_Ripple['Datetime'] >= flag_datetime)]
-        
+        buy_signals = buy_signals[['Datetime', 'Volume', 'HA_Type', 'HA_Green', 'HA_Red', 'Pattern', 'Price_Above_EMA', 'RSI_Type', 'ADX_14', 'ADX Status', 'Stochastic_PCO','Stochastic_Oversold','Stochastic_PC_from_Oversold','Below_618']]
+
         if not buy_signals.empty:
             st.subheader("Buy Signals (Ripple_Status = True)")
             st.dataframe(buy_signals)
