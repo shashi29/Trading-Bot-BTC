@@ -1,0 +1,5 @@
+streamlit
+xlsxwriter
+bt
+pandas-ta
+ta

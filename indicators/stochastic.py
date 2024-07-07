@@ -1,6 +1,11 @@
 # indicators/stochastic.py
 
 import pandas as pd
+import numpy as np
+np.NaN = np.nan  # Patch np.NaN
+
+from pandas_ta.momentum import stoch
+from typing import Dict, Any
 
 def calculate_stochastic(df, k=14, d=3):
     """
@@ -14,16 +19,9 @@ def calculate_stochastic(df, k=14, d=3):
     Returns:
     - pd.DataFrame: DataFrame with added columns '%K', '%D'
     """
-    df = df.copy()
-    
-    # Calculate %K
-    df['Lowest Low'] = df['Low'].rolling(window=k).min()
-    df['Highest High'] = df['High'].rolling(window=k).max()
-    df['%K'] = 100 * ((df['Close'] - df['Lowest Low']) / (df['Highest High'] - df['Lowest Low']))
-    
-    # Calculate %D
-    df['%D'] = df['%K'].rolling(window=d).mean()
-    
+    stoch_df = stoch(df['High'], df['Low'], df['Close'])
+    df = pd.concat([df, stoch_df], axis=1)
+    df = df.rename(columns={'STOCHk_14_3_3': '%K', 'STOCHd_14_3_3': '%D'})
     return df
 
 def check_stochastic_conditions(df, oversold_threshold=20):
@@ -40,12 +38,12 @@ def check_stochastic_conditions(df, oversold_threshold=20):
     df = df.copy()
     
     # Identify Positive Crossover (PCO)
-    df['Stochastic_PCO'] = (df['%K'] > df['%D']) & (df['%K'].shift(1) <= df['%D'].shift(1))
+    df['Stochastic_PCO'] = (df['%K'] > df['%D']) & (df['%K'].shift(1) <= df['%D'].shift(1)) & (df['Ripple_Status'] == True)
     
     # Identify Oversold condition
-    df['Stochastic_Oversold'] = df['%K'] < oversold_threshold
+    df['Stochastic_Oversold'] = (df['%K'] < oversold_threshold) & (df['Ripple_Status'] == True)
     
     # Combine conditions: PCO from oversold region
-    df['Stochastic_PC_from_Oversold'] = df['Stochastic_PCO'] & df['Stochastic_Oversold']
+    df['Stochastic_PC_from_Oversold'] = df['Stochastic_PCO'] & df['Stochastic_Oversold'] & df['Ripple_Status']
     
     return df

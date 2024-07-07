@@ -3,8 +3,10 @@ from data.processor import calculate_heikin_ashi
 from indicators.ema import calculate_ema, calculate_ema_ripple
 from indicators.bollinger_bands import calculate_bollinger_bands, check_bollinger_band_condition
 from indicators.rsi import calculate_rsi, check_rsi_conditions
-from indicators.dmi import calculate_dmi, identify_dmi_conditions, check_ADX_Forming_Ungli
+# from indicators.dmi import calculate_dmi, identify_dmi_conditions, check_ADX_Forming_Ungli
+from indicators.adx import calculate_adx, check_adx_conditions
 from indicators.stochastic import calculate_stochastic, check_stochastic_conditions
+from indicators.fb_618 import predict_below_618
 from patterns.candlestick_patterns import check_bullish_candlestick_pattern
 from analysis.tide_analysis import analyze_tide
 from analysis.wave_analysis import analyze_wave
@@ -79,9 +81,11 @@ class StockScanner:
         #Buy Condition 4: Ripple RSI
         df_Ripple = check_rsi_conditions(df_Ripple)
         #Buy Condition 5: Ripple ADX Forming Ungli
-        df_Ripple = check_ADX_Forming_Ungli(df_Ripple)
+        df_Ripple = check_adx_conditions(df_Ripple)
         #Buy Condition 6: •	Ripple Stochastic PCO
         df_Ripple = check_stochastic_conditions(df_Ripple)
+        #Buy Condition 7: Fib < 61.8% of last wave
+        df_Ripple = predict_below_618(df_Ripple)
 
         self.excel_writer.write(ticker, {
             'Tide': df_Tide,
@@ -111,8 +115,7 @@ class StockScanner:
         df = calculate_ema_ripple(df, self.config.get_indicator_params('EMA')['period'])
         df = calculate_bollinger_bands(df, **self.config.get_indicator_params('BOLLINGER_BANDS'))
         df = calculate_rsi(df, **self.config.get_indicator_params('RSI'))
-        df = calculate_dmi(df, **self.config.get_indicator_params('DMI'))
-        df = identify_dmi_conditions(df, self.config.get_analysis_param('adx_threshold'))
+        df = calculate_adx(df, **self.config.get_indicator_params('DMI'))
         df = calculate_stochastic(df, **self.config.get_indicator_params('STOCHASTIC'))
         return df
 
@@ -122,3 +125,10 @@ if __name__ == "__main__":
     scanner = StockScanner(config)
     scanner.scan()
     
+
+
+'''
+Stock Datetime TF_Tide, TF_Wave, TF_Ripple, 
+
+
+'''
