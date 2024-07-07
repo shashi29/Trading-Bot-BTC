@@ -25,6 +25,7 @@ class StockScanner:
         for ticker in self.config.get_tickers():
             print(f"Processing {ticker}...")
             df_Tide, df_Wave, df_Ripple = self.Check_buy_condition(ticker)
+            self.write_to_excel(ticker, df_Tide, df_Wave, df_Ripple)
             #df_Tide, df_Wave, df_Ripple = self.Check_sell_condition(ticker)
 
     def Check_buy_condition(self, ticker):
@@ -87,11 +88,6 @@ class StockScanner:
         #Buy Condition 7: Fib < 61.8% of last wave
         df_Ripple = predict_below_618(df_Ripple)
 
-        self.excel_writer.write(ticker, {
-            'Tide': df_Tide,
-            'Wave': df_Wave,
-            'Ripple': df_Ripple
-        })
         return df_Tide, df_Wave, df_Ripple
   
 
@@ -119,6 +115,12 @@ class StockScanner:
         df = calculate_stochastic(df, **self.config.get_indicator_params('STOCHASTIC'))
         return df
 
+    def write_to_excel(self, ticker, df_Tide, df_Wave, df_Ripple):
+        self.excel_writer.write(ticker, {
+            'Tide': df_Tide,
+            'Wave': df_Wave,
+            'Ripple': df_Ripple
+        })
 # Usage
 if __name__ == "__main__":
     from config import config

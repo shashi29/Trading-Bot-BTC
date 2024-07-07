@@ -3,3 +3,4 @@ xlsxwriter
 bt
 pandas-ta
 ta
+plotly
