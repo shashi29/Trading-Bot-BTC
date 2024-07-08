@@ -33,7 +33,7 @@ def main():
     # Input for stock tickers
     tickers = st.text_area("Enter Stock Tickers (comma-separated):", "DIXON.NS, TCS.NS, INFY.NS")
     flag_date = st.date_input("Select Date", datetime.now().date())
-    flag_time = st.time_input("Select Time", time(12, 30))
+    flag_time = st.time_input("Select Time", time(9, 00))
     flag_datetime = datetime.combine(flag_date, flag_time)
     
     tickers_list = [ticker.strip() for ticker in tickers.split(",")]
