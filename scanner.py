@@ -15,10 +15,18 @@ from utils.excel_writer import ExcelWriter
 import numpy as np
 import pandas as pd
 
+# Helper function to get the next trading day after Friday
+def get_next_monday(date):
+    days_ahead = 7 - date.weekday()  # Monday is 0 and Sunday is 6
+    return date + pd.Timedelta(days=days_ahead)
+
 class StockScanner:
     def __init__(self, config):
         self.config = config
         self.excel_writer = ExcelWriter()
+        # Define the start and end time for the trading window
+        self.start_trading_time = pd.to_datetime("09:15").time()
+        self.end_trading_time = pd.to_datetime("15:15").time()
 
     def scan(self):
         results = {}
@@ -41,23 +49,32 @@ class StockScanner:
 
         for tide_status_date in tide_status_date_list:
             date_to_filter = pd.to_datetime(tide_status_date).date()
+            next_date_to_filter = date_to_filter + pd.Timedelta(days=1)
+
             #Create Wave Green Status for next full day
             df_Wave['Wave_Status'] = np.where(
-                (df_Wave['Datetime'].dt.date == date_to_filter) &
+                (df_Wave['Datetime'].dt.date.isin([date_to_filter, next_date_to_filter])) &
                 (df_Wave['HA_Green'] == True) &
                 (df_Wave['EMA_Slope'] > 0) &
                 (df_Wave['EMA_Slope_Up'] == True),
                 True, df_Wave['Wave_Status']
             )
             
-            wave_status_date_list = df_Wave[
-                (df_Wave['Wave_Status'] == True) & 
-                (df_Wave['Datetime'].dt.date == date_to_filter)]['Datetime'].unique()
-            
+            wave_status_date_list = df_Wave[(df_Wave['Wave_Status'] == True) & \
+                                            (df_Wave['Datetime'].dt.date.isin([date_to_filter, next_date_to_filter]))]['Datetime'].unique()
+                        
             for wave_status_date in wave_status_date_list:            
-                start_time = wave_status_date + pd.Timedelta(hours=1)
-                end_time = wave_status_date + pd.Timedelta(hours=2)
-
+                if wave_status_date.time() == self.end_trading_time:
+                    if wave_status_date.weekday() == 4:  # If Friday
+                        next_monday = get_next_monday(wave_status_date)
+                        start_time = next_monday + pd.Timedelta(hours=9)
+                        end_time = next_monday + pd.Timedelta(hours=10)
+                    else:
+                        start_time = wave_status_date + pd.Timedelta(hours=18)
+                        end_time = wave_status_date + pd.Timedelta(hours=19)
+                else:
+                    start_time = wave_status_date + pd.Timedelta(hours=1)
+                    end_time = wave_status_date + pd.Timedelta(hours=2)
                 # Check conditions and assign Ripple_Status using numpy where
                 df_Ripple['Ripple_Status'] = np.where(
                     (df_Ripple['Datetime'].between(start_time, end_time)) &

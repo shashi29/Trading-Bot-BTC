@@ -106,3 +106,4 @@ class ExcelWriter:
             
             df_explanations = pd.DataFrame(explanation_data, columns=['Sheet', 'Column', 'Explanation'])
             df_explanations.to_excel(writer, sheet_name='Column Explanations', index=False)
+
