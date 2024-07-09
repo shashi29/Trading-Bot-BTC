@@ -2,7 +2,7 @@ class Config:
     def __init__(self):
         self.TICKERS = [
             # "ULTRACEMCO.NS",   # Ultratech Cement
-            "DIXON.NS",        # Dixon
+            "RELIANCE.NS",        # Dixon
             # "HAL.NS",          # HAL (Hindustan Aeronautics Limited)
             # "PERSISTENT.NS",   # Persistent Systems
             # "DIVISLAB.NS",     # Divis Laboratories

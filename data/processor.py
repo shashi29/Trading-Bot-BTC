@@ -1,5 +1,4 @@
 # data/processor.py
-
 import pandas as pd
 import numpy as np
 
@@ -13,17 +12,30 @@ def calculate_heikin_ashi(df):
     Returns:
     - pd.DataFrame: DataFrame with added Heikin Ashi columns
     """
-    df = df.copy()
-    df['HA_Close'] = (df['Open'] + df['High'] + df['Low'] + df['Close']) / 4
-    df['HA_Open'] = (df['Open'].shift(1) + df['Close'].shift(1)) / 2
-    df.loc[0, 'HA_Open'] = df['Open'].iloc[0]
-    df['HA_High'] = df[['High', 'HA_Open', 'HA_Close']].max(axis=1)
-    df['HA_Low'] = df[['Low', 'HA_Open', 'HA_Close']].min(axis=1)
+    bars = df.copy()
+    bars['HA_Close'] = (bars['Open'] + bars['High'] + bars['Low'] + bars['Close']) / 4
+
+    # Initialize the first HA_Open value
+    bars.at[0, 'HA_Open'] = (bars.at[0, 'Open'] + bars.at[0, 'Close']) / 2
+    
+    # Calculate HA_Open for the rest of the rows
+    for i in range(1, len(bars)):
+        bars.loc[i, 'HA_Open'] = (bars.loc[i - 1, 'HA_Open'] + bars.loc[i - 1, 'HA_Close']) / 2
+
+    bars['HA_High'] = bars.loc[:, ['High', 'HA_Open', 'HA_Close']].max(axis=1)
+    bars['HA_Low'] = bars.loc[:, ['Low', 'HA_Open', 'HA_Close']].min(axis=1)
+    
+    # Merging Heikin Ashi columns back to the original dataframe
+    df = pd.concat([df, bars[['HA_Open', 'HA_High', 'HA_Low', 'HA_Close']]], axis=1)
+    
+    # Classify the Heikin Ashi candles
     df['HA_Type'] = df.apply(classify_candle, axis=1)
     df['HA_Green'] = df['HA_Type'].str.contains(r"Solid Green|Neutral")
     df['HA_Red'] = df['HA_Type'].str.contains(r"Solid Red|Neutral")
-    #Bullish pattern
+    
+    # Add bullish candlestick patterns
     df = add_candlestick_patterns(df)
+    
     return df
 
 def classify_candle(row):

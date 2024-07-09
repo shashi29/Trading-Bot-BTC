@@ -31,7 +31,7 @@ def main():
     st.title("Stock Scanner App")
 
     # Input for stock tickers
-    tickers = st.text_area("Enter Stock Tickers (comma-separated):", "DIXON.NS, TCS.NS, INFY.NS")
+    tickers = st.text_area("Enter Stock Tickers (comma-separated):", "RELIANCE.NS, INFY.NS")
     flag_date = st.date_input("Select Date", datetime.now().date())
     # flag_time = st.time_input("Select Time", time(9, 0))
     # flag_datetime = datetime.combine(flag_date, flag_time)
@@ -51,7 +51,7 @@ def main():
                 # Check if any Ripple_Status is True on the selected date
                 if daily_data['Ripple_Status'].any():
                     buy_signals = daily_data[daily_data['Ripple_Status'] == True]
-                    buy_signals = buy_signals[['Datetime', 'HA_Open', 'HA_High', 'HA_Low', 'HA_Close', 'Volume', 'HA_Type', 'HA_Green', 'HA_Red', 'Pattern', 'Price_Above_EMA', 'RSI_Type', 'ADX_14', 'ADX Status', 'Stochastic_PCO', 'Stochastic_Oversold', 'Stochastic_PC_from_Oversold', 'Below_618']]
+                    buy_signals = buy_signals[['Datetime', 'HA_Open', 'HA_High', 'HA_Low', 'HA_Close', 'Volume', 'HA_Type', 'HA_Green', 'HA_Red', 'Price_Above_EMA', 'RSI_Type', 'ADX_14', 'ADX Status', 'Stochastic_PCO', 'Stochastic_Oversold', 'Stochastic_PC_from_Oversold', 'Below_618']]
                     
                     st.subheader(f"Results for {ticker} on {flag_date}")
                     st.subheader("Candles for the Day (Ripple_Status = True)")
