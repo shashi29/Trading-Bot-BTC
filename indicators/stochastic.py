@@ -19,6 +19,7 @@ def calculate_stochastic(df, k=14, d=3):
     Returns:
     - pd.DataFrame: DataFrame with added columns '%K', '%D'
     """
+    df.reset_index(drop=True, inplace=True)
     stoch_df = stoch(df['High'], df['Low'], df['Close'])
     df = pd.concat([df, stoch_df], axis=1)
     df = df.rename(columns={'STOCHk_14_3_3': '%K', 'STOCHd_14_3_3': '%D'})

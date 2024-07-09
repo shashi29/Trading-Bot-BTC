@@ -2,16 +2,8 @@
 import pandas as pd
 import numpy as np
 
-def calculate_heikin_ashi(df):
-    """
-    Calculate Heikin Ashi candles from OHLC data.
-    
-    Args:
-    - df (pd.DataFrame): DataFrame containing 'Open', 'High', 'Low', 'Close' columns
-    
-    Returns:
-    - pd.DataFrame: DataFrame with added Heikin Ashi columns
-    """
+def calculate_heikin_ashi_1day(df):
+    df.reset_index(inplace=True, drop=True)
     bars = df.copy()
     bars['HA_Close'] = (bars['Open'] + bars['High'] + bars['Low'] + bars['Close']) / 4
 
@@ -20,7 +12,7 @@ def calculate_heikin_ashi(df):
     
     # Calculate HA_Open for the rest of the rows
     for i in range(1, len(bars)):
-        bars.loc[i, 'HA_Open'] = (bars.loc[i - 1, 'HA_Open'] + bars.loc[i - 1, 'HA_Close']) / 2
+        bars.at[i, 'HA_Open'] = (bars.at[i - 1, 'HA_Open'] + bars.at[i - 1, 'HA_Close']) / 2
 
     bars['HA_High'] = bars.loc[:, ['High', 'HA_Open', 'HA_Close']].max(axis=1)
     bars['HA_Low'] = bars.loc[:, ['Low', 'HA_Open', 'HA_Close']].min(axis=1)
@@ -35,7 +27,28 @@ def calculate_heikin_ashi(df):
     
     # Add bullish candlestick patterns
     df = add_candlestick_patterns(df)
+    return df
+
+def calculate_heikin_ashi(df):
+    """
+    Calculate Heikin Ashi candles from OHLC data.
     
+    Args:
+    - df (pd.DataFrame): DataFrame containing 'Open', 'High', 'Low', 'Close' columns
+    
+    Returns:
+    - pd.DataFrame: DataFrame with added Heikin Ashi columns
+    """
+    if "Datetime" in df.columns:
+        unique_days = df['Datetime'].dt.floor('d').unique()
+        all_dfs = []
+        for day in unique_days:
+            df_1day = df[df['Datetime'].dt.floor('d') == day]
+            df_1day = calculate_heikin_ashi_1day(df_1day)
+            all_dfs.append(df_1day)
+        df = pd.concat(all_dfs)
+    else:
+        df = calculate_heikin_ashi_1day(df)
     return df
 
 def classify_candle(row):
