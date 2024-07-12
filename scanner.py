@@ -20,6 +20,59 @@ def get_next_monday(date):
     days_ahead = 7 - date.weekday()  # Monday is 0 and Sunday is 6
     return date + pd.Timedelta(days=days_ahead)
 
+def trading_strategy(df, stop_loss_percentage=0.05, target_profit_factor=1.5):
+    initial_capital = 100000
+    capital = initial_capital
+    position = 0
+    buy_price = 0
+    stop_loss = stop_loss_percentage
+    target_gain = target_profit_factor * stop_loss_percentage
+    trade_log = []
+
+    for index, row in df.iterrows():
+        if row['Ripple_Status'] and row['HA_Type'] == 'Solid Green' and position == 0:
+            position = capital / row['Close']
+            buy_price = row['Close']
+            stop_loss_price = buy_price - stop_loss
+            target_price = buy_price + target_gain
+            capital = 0
+            trade_log.append({
+                'Buy Time': row['Datetime'],
+                'Buy Price': buy_price,
+                'Stop Loss': stop_loss_price,
+                'Target Price': target_price,
+                'Win/Loss': ''  # Initialize 'Win/Loss' key
+            })
+        elif (not row['Ripple_Status'] or row['HA_Type'] == 'Solid Red') and position > 0:
+            sell_price = row['Close']
+            capital = position * sell_price
+            position = 0
+            profit_loss = sell_price - buy_price
+            win_loss = 'Win' if profit_loss > 0 else 'Loss'
+            trade_log[-1].update({
+                'Sell Time': row['Datetime'],
+                'Sell Price': sell_price,
+                'Profit/Loss': profit_loss,
+                'Win/Loss': win_loss
+            })
+
+    # After exiting the loop, ensure all entries in trade_log have 'Win/Loss' key
+    for trade in trade_log:
+        if 'Win/Loss' not in trade:
+            trade['Win/Loss'] = ''  # Handle cases where 'Win/Loss' key was not updated
+
+    final_value = capital + (position * df.iloc[-1]['Close'])
+
+    num_trades = len(trade_log)
+    wins = sum(1 for trade in trade_log if trade['Win/Loss'] == 'Win')
+    #total_profit = sum(trade['Profit/Loss'] for trade in trade_log)
+
+    win_ratio = wins / num_trades if num_trades > 0 else 0
+    profit_percentage = (final_value - initial_capital) / initial_capital * 100
+
+    return trade_log, win_ratio, profit_percentage
+
+
 class StockScanner:
     def __init__(self, config):
         self.config = config
@@ -34,6 +87,10 @@ class StockScanner:
             print(f"Processing {ticker}...")
             df_Tide, df_Wave, df_Ripple = self.Check_buy_condition(ticker)
             self.write_to_excel(ticker, df_Tide, df_Wave, df_Ripple)
+            trade_log, win_ratio, profit_percentage = trading_strategy(df_Ripple)
+            print(trade_log)
+            print(f"Win Ratio: {win_ratio}")
+            print(f"Profit Percentage: {profit_percentage}%")
             #df_Tide, df_Wave, df_Ripple = self.Check_sell_condition(ticker)
 
     def Check_buy_condition(self, ticker):
@@ -88,9 +145,9 @@ class StockScanner:
                     (df_Ripple['Ripple_Status'] == True) & 
                     (df_Ripple['Datetime'].between(start_time, end_time))]['Datetime'].unique()
                 
-                for ripple_status_date in ripple_status_date_list:
-                    print(f"Buy at {ripple_status_date} on {ticker}")
-            print("-----------------------------------------------------------------------------------------")
+            #     for ripple_status_date in ripple_status_date_list:
+            #         print(f"Buy at {ripple_status_date} on {ticker}")
+            # print("-----------------------------------------------------------------------------------------")
 
         #Buy Condition 2: 
         df_Ripple = check_bollinger_band_condition(df_Ripple)

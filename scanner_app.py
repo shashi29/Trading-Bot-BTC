@@ -79,7 +79,6 @@ def trading_strategy(df, stop_loss_percentage=0.05, target_profit_factor=1.5):
 
         num_trades = len(trade_log)
         wins = sum(1 for trade in trade_log if trade['Win/Loss'] == 'Win')
-        total_profit = sum(trade['Profit/Loss'] for trade in trade_log)
 
         win_ratio = wins / num_trades if num_trades > 0 else 0
         profit_percentage = (final_value - initial_capital) / initial_capital * 100
@@ -94,12 +93,12 @@ def trading_strategy(df, stop_loss_percentage=0.05, target_profit_factor=1.5):
 def main():
     st.title("Stock Scanner App")
 
-    tickers = st.text_area("Enter Stock Tickers (comma-separated):", "RELIANCE.NS, INFY.NS")
+    tickers = st.text_area("Enter Stock Tickers (comma-separated):", "RELIANCE, INFY")
     flag_date = st.date_input("Select Date", datetime.now().date())
     stop_loss_percentage = st.number_input("Stop Loss Percentage", min_value=0.01, max_value=0.1, value=0.05, step=0.01)
     target_profit_factor = st.number_input("Target Profit Factor", min_value=1.0, max_value=2.0, value=1.5, step=0.1)
     
-    tickers_list = [ticker.strip() for ticker in tickers.split(",")]
+    tickers_list = [ticker.strip() + ".NS" for ticker in tickers.split(",")]
 
     if st.button("Scan Stocks"):
         for ticker in tickers_list:
