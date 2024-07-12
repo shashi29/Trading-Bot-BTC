@@ -1,23 +1,9 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import plotly.graph_objects as go
-from datetime import datetime, time
+from datetime import datetime
 from config import config
 from scanner import StockScanner
-from data.fetcher import fetch_data
-from data.processor import calculate_heikin_ashi
-from indicators.ema import calculate_ema, calculate_ema_ripple
-from indicators.bollinger_bands import calculate_bollinger_bands, check_bollinger_band_condition
-from indicators.rsi import calculate_rsi, check_rsi_conditions
-from indicators.adx import calculate_adx, check_adx_conditions
-from indicators.stochastic import calculate_stochastic, check_stochastic_conditions
-from indicators.fb_618 import predict_below_618
-from patterns.candlestick_patterns import check_bullish_candlestick_pattern
-from analysis.tide_analysis import analyze_tide
-from analysis.wave_analysis import analyze_wave
-from analysis.ripple_analysis import analyze_ripple
-from utils.excel_writer import ExcelWriter
 
 # Initialize the StockScanner
 scanner = StockScanner(config)
@@ -36,178 +22,116 @@ def plot_candlestick(df):
         title="Candlestick Chart",
         xaxis_title="Date",
         yaxis_title="Price",
-        template="plotly_white"
+        template="plotly_white",
+        xaxis_type='category',
+        xaxis=dict(
+            tickformat='%H:%M',
+            dtick=1800000,
+            tickmode='linear'
+        )
     )
     
     return fig
 
-def process_tide(ticker):
+def trading_strategy(df, stop_loss_percentage=0.05, target_profit_factor=1.5):
+    initial_capital = 100000
+    capital = initial_capital
+    position = 0
+    buy_price = 0
+    stop_loss = stop_loss_percentage
+    target_gain = target_profit_factor * stop_loss_percentage
+    trade_log = []
+
     try:
-        df_Tide = scanner.process_tide_data(ticker)
-        tide_status_dates = df_Tide[df_Tide['HA_Green']]['Date'].unique()
-        return df_Tide, tide_status_dates
-    except Exception as e:
-        st.error(f"Error processing tide data for {ticker}: {e}")
-        return pd.DataFrame(), []
+        for index, row in df.iterrows():
+            if row['Ripple_Status'] and row['HA_Type'] == 'Solid Green' and position == 0:
+                position = capital / row['Close']
+                buy_price = row['Close']
+                stop_loss_price = buy_price - stop_loss
+                target_price = buy_price + target_gain
+                capital = 0
+                trade_log.append({
+                    'Buy Time': row['Datetime'],
+                    'Buy Price': buy_price,
+                    'Stop Loss': stop_loss_price,
+                    'Target Price': target_price,
+                    'Win/Loss': ''  # Initialize 'Win/Loss' key
+                })
+            elif (not row['Ripple_Status'] or row['HA_Type'] == 'Solid Red') and position > 0:
+                sell_price = row['Close']
+                capital = position * sell_price
+                position = 0
+                profit_loss = sell_price - buy_price
+                win_loss = 'Win' if profit_loss > 0 else 'Loss'
+                trade_log[-1].update({
+                    'Sell Time': row['Datetime'],
+                    'Sell Price': sell_price,
+                    'Profit/Loss': profit_loss,
+                    'Win/Loss': win_loss
+                })
 
-def process_wave(ticker, date):
-    try:
-        df_Wave = scanner.process_wave_data(ticker)
-        wave_status_dates = []
-        
-        if not df_Wave.empty:
-            df_Wave['Wave_Status'] = False
-            date_to_filter = pd.to_datetime(date).date()
-            
-            df_Wave['Wave_Status'] = np.where(
-                (df_Wave['Datetime'].dt.date == date_to_filter) &
-                (df_Wave['HA_Green']) &
-                (df_Wave['EMA_Slope'] > 0) &
-                (df_Wave['EMA_Slope_Up']),
-                True, df_Wave['Wave_Status']
-            )
-            
-            wave_status_dates = df_Wave[df_Wave['Wave_Status']]['Datetime'].unique()
-        
-        return df_Wave, wave_status_dates
-    except Exception as e:
-        st.error(f"Error processing wave data for {ticker} on {date}: {e}")
-        return pd.DataFrame(), []
+        # After exiting the loop, ensure all entries in trade_log have 'Win/Loss' key
+        for trade in trade_log:
+            if 'Win/Loss' not in trade:
+                trade['Win/Loss'] = ''  # Handle cases where 'Win/Loss' key was not updated
 
-def process_ripple(ticker, datetime_range):
-    try:
-        df_Ripple = scanner.process_ripple_data(ticker)
-        
-        if not df_Ripple.empty:
-            df_Ripple['Ripple_Status'] = False
-            start_time, end_time = datetime_range
-            
-            df_Ripple['Ripple_Status'] = np.where(
-                (df_Ripple['Datetime'].between(start_time, end_time)) &
-                (df_Ripple['HA_Green']) &
-                (df_Ripple['Price_Above_EMA']) &
-                (~df_Ripple['FBD_Signal']),
-                True, df_Ripple['Ripple_Status']
-            )
-            
-            ripple_status_dates = df_Ripple[df_Ripple['Ripple_Status']]['Datetime'].unique()
-            
-            df_Ripple = check_bollinger_band_condition(df_Ripple)
-            df_Ripple = check_bullish_candlestick_pattern(df_Ripple)
-            df_Ripple = check_rsi_conditions(df_Ripple)
-            df_Ripple = check_adx_conditions(df_Ripple)
-            df_Ripple = check_stochastic_conditions(df_Ripple)
-            df_Ripple = predict_below_618(df_Ripple)
-            
-            return df_Ripple, ripple_status_dates
-        
-        return df_Ripple, []
-    except Exception as e:
-        st.error(f"Error processing ripple data for {ticker} and datetime range {datetime_range}: {e}")
-        return pd.DataFrame(), []
+        final_value = capital + (position * df.iloc[-1]['Close'])
 
-def check_buy_conditions(ticker):
-    try:
-        df_Tide, tide_status_dates = process_tide(ticker)
-        
-        if tide_status_dates.size > 0:
-            for tide_date in tide_status_dates:
-                df_Wave, wave_status_dates = process_wave(ticker, tide_date)
-                
-                if wave_status_dates.size > 0:
-                    for wave_datetime in wave_status_dates:
-                        datetime_range = (wave_datetime + pd.Timedelta(hours=1), wave_datetime + pd.Timedelta(hours=2))
-                        df_Ripple, ripple_status_dates = process_ripple(ticker, datetime_range)
-                        
-                        if ripple_status_dates.size > 0:
-                            return df_Tide, df_Wave, df_Ripple
-        return df_Tide, pd.DataFrame(), pd.DataFrame()
-    except Exception as e:
-        st.error(f"Error checking buy conditions for {ticker}: {e}")
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        num_trades = len(trade_log)
+        wins = sum(1 for trade in trade_log if trade['Win/Loss'] == 'Win')
+        total_profit = sum(trade['Profit/Loss'] for trade in trade_log)
 
-def show_buy_recommendations(tickers_list):
-    st.title("Buy Recommendations")
+        win_ratio = wins / num_trades if num_trades > 0 else 0
+        profit_percentage = (final_value - initial_capital) / initial_capital * 100
 
-    current_time = datetime.now().time()
-    current_datetime = datetime.combine(datetime.now().date(), current_time)
-    
-    for ticker in tickers_list:
-        try:
-            df_Tide, df_Wave, df_Ripple = check_buy_conditions(ticker)
-            
-            if not df_Ripple.empty:
-                last_entry = df_Ripple.iloc[-1]
-                
-                if last_entry['HA_Green'] and last_entry['Ripple_Status']:
-                    st.subheader(f"{ticker}: Buy Recommendation")
-                    st.dataframe(df_Ripple.loc[df_Ripple.index[-1]])
-        except Exception as e:
-            st.error(f"An error occurred while processing {ticker}: {e}")
+        return trade_log, win_ratio, profit_percentage
 
-def generate_final_report(tickers_list):
-    st.title("Final Report")
+    except Exception as ex:
+        st.error(f"An error occurred during trading: {str(ex)}")
+        return [], 0, 0
 
-    for ticker in tickers_list:
-        try:
-            df_Tide, df_Wave, df_Ripple = check_buy_conditions(ticker)
-            
-            if not df_Ripple.empty:
-                st.subheader(f"Results for {ticker}")
-                st.dataframe(df_Ripple)
-                # Add more details or visualizations as needed
-        except Exception as e:
-            st.error(f"An error occurred while processing {ticker}: {e}")
 
 def main():
     st.title("Stock Scanner App")
 
-    # Input for stock tickers
-    tickers = st.text_area("Enter Stock Tickers (comma-separated):", "DIXON.NS, TCS.NS, INFY.NS")
+    tickers = st.text_area("Enter Stock Tickers (comma-separated):", "RELIANCE.NS, INFY.NS")
     flag_date = st.date_input("Select Date", datetime.now().date())
-    flag_time = st.time_input("Select Time", time(9, 0))
-    flag_datetime = datetime.combine(flag_date, flag_time)
+    stop_loss_percentage = st.number_input("Stop Loss Percentage", min_value=0.01, max_value=0.1, value=0.05, step=0.01)
+    target_profit_factor = st.number_input("Target Profit Factor", min_value=1.0, max_value=2.0, value=1.5, step=0.1)
     
     tickers_list = [ticker.strip() for ticker in tickers.split(",")]
 
-    page = st.sidebar.selectbox("Select a page", ["Scan Stocks", "Buy Recommendations", "Final Report"])
-
-    if page == "Scan Stocks":
-        st.title("Stock Scanner App")
-        if st.button("Scan Stocks"):
-            for ticker in tickers_list:
+    if st.button("Scan Stocks"):
+        for ticker in tickers_list:
+            try:
                 with st.spinner(f"Scanning {ticker}..."):
-                    df_Tide, df_Wave, df_Ripple = check_buy_conditions(ticker)
-                
-                if not df_Ripple.empty:
-                    df_Ripple['Date'] = df_Ripple['Datetime'].dt.date
-                    daily_data = df_Ripple[df_Ripple['Date'] == flag_date]
+                    df_Tide, df_Wave, df_Ripple = scanner.Check_buy_condition(ticker)
+
+                df_Ripple['Date'] = df_Ripple['Datetime'].dt.date
+                daily_data = df_Ripple[df_Ripple['Date'] >= flag_date]
+
+                if daily_data['Ripple_Status'].any():
+                    buy_signals = daily_data[['Datetime', 'HA_Open', 'HA_High', 'HA_Low', 'HA_Close', 'Volume', 'HA_Type', 'HA_Green', 'HA_Red', 'Pattern', 'Price_Above_EMA', 'RSI_Type', 'ADX_14', 'ADX Status', 'Stochastic_PCO', 'Stochastic_Oversold', 'Stochastic_PC_from_Oversold', 'Below_618']]
                     
                     st.subheader(f"Results for {ticker} on {flag_date}")
                     st.subheader("Candles for the Day (Ripple_Status = True)")
-                    st.dataframe(daily_data)
+                    st.dataframe(buy_signals)
                     
-                    # Plot candlestick chart
                     fig = plot_candlestick(daily_data)
                     st.plotly_chart(fig)
+
+                    trade_log, win_ratio, profit_percentage = trading_strategy(daily_data, stop_loss_percentage, target_profit_factor)
+                    trade_log_df = pd.DataFrame(trade_log)
+
+                    st.subheader("Trade Log")
+                    st.dataframe(trade_log_df)
+
+                    st.write(f"Win Ratio: {win_ratio}")
+                    st.write(f"Profit Percentage: {profit_percentage}%")
                 else:
                     st.info(f"No buy signals detected for {ticker} on {flag_date} (No rows with Ripple_Status = True).")
-    elif page == "Buy Recommendations":
-        show_buy_recommendations(tickers_list)
-    elif page == "Final Report":
-        generate_final_report(tickers_list)
-
-    # Add JavaScript for Refresh
-    st.markdown(
-        """
-        <script>
-        setTimeout(function() {
-            window.location.reload();
-        }, 960000); // 16 minutes in milliseconds
-        </script>
-        """,
-        unsafe_allow_html=True
-    )
+            except Exception as ex:
+                st.error(f"Error processing {ticker}: {str(ex)}")
 
 if __name__ == "__main__":
     main()

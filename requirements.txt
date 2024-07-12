@@ -4,3 +4,4 @@ bt
 pandas-ta
 ta
 plotly
+openpyxl
