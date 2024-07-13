@@ -95,8 +95,8 @@ def main():
 
     tickers = st.text_area("Enter Stock Tickers (comma-separated):", "RELIANCE, INFY")
     flag_date = st.date_input("Select Date", datetime.now().date())
-    stop_loss_percentage = st.number_input("Stop Loss Percentage", min_value=0.01, max_value=0.1, value=0.05, step=0.01)
-    target_profit_factor = st.number_input("Target Profit Factor", min_value=1.0, max_value=2.0, value=1.5, step=0.1)
+    stop_loss_percentage = 0.1#st.number_input("Stop Loss Percentage")
+    target_profit_factor = 1.5#st.number_input("Target Profit Factor")
     
     tickers_list = [ticker.strip() + ".NS" for ticker in tickers.split(",")]
 

@@ -1,13 +1,22 @@
 class Config:
     def __init__(self):
         self.TICKERS = [
-            # "ULTRACEMCO.NS",   # Ultratech Cement
-            "INFY.NS",        # Dixon
-            # "HAL.NS",          # HAL (Hindustan Aeronautics Limited)
-            # "PERSISTENT.NS",   # Persistent Systems
-            # "DIVISLAB.NS",     # Divis Laboratories
-            # "SIEMENS.NS",      # Siemens
-            # "M&M.NS"           # Mahindra & Mahindra
+    #         "ULTRACEMCO",   # Ultratech Cement
+    #         "INFY",        # Dixon
+    #         "HAL",          # HAL (Hindustan Aeronautics Limited)
+    #         "PERSISTENT",   # Persistent Systems
+    #         "DIVISLAB",     # Divis Laboratories
+    #         "SIEMENS",      # Siemens
+    #         "M&M",           # Mahindra & Mahindra
+    #         "LOTUSEYE", "CAREERP", "ONWARDTEC", "AXISTECETF", "NGLFINE", "PILITA", "SONATSOFTW",
+    # "PROZONER", "MUKKA", "MEGASTAR", "ITI", "WEALTH", "LAL", "HITECHCORP", "KSOLVES",
+    # "XCHANGING", "HARDWYN", "GLS", "KAMOPAINTS", "VINATIORGA", "PIXTRANS", "SBCL", "MON100",
+    # "MTNL", "ZENSARTECH"
+        "LOTUSEYE", "CAREERP", "ONWARDTEC", "AXISTECETF", "NGLFINE", 
+    "PILITA", "SONATSOFTW", "PROZONER", "MUKKA", "MEGASTAR", 
+    "ITI", "WEALTH", "LAL", "HITECHCORP", "KSOLVES", "XCHANGING", 
+    "HARDWYN", "GLS", "KAMOPAINTS", "VINATIORGA", "PIXTRANS", 
+    "SBCL", "MON100", "MTNL", "NDLVENTURE"
         ]
         
         self.TIME_FRAMES = {

@@ -15,6 +15,8 @@ from utils.excel_writer import ExcelWriter
 import numpy as np
 import pandas as pd
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 # Helper function to get the next trading day after Friday
 def get_next_monday(date):
     days_ahead = 7 - date.weekday()  # Monday is 0 and Sunday is 6
@@ -70,7 +72,7 @@ def trading_strategy(df, stop_loss_percentage=0.05, target_profit_factor=1.5):
     win_ratio = wins / num_trades if num_trades > 0 else 0
     profit_percentage = (final_value - initial_capital) / initial_capital * 100
 
-    return trade_log, win_ratio, profit_percentage
+    return pd.DataFrame(trade_log), win_ratio, profit_percentage
 
 
 class StockScanner:
@@ -83,15 +85,25 @@ class StockScanner:
 
     def scan(self):
         results = {}
+        trade_log_list = list()
         for ticker in self.config.get_tickers():
-            print(f"Processing {ticker}...")
-            df_Tide, df_Wave, df_Ripple = self.Check_buy_condition(ticker)
-            self.write_to_excel(ticker, df_Tide, df_Wave, df_Ripple)
-            trade_log, win_ratio, profit_percentage = trading_strategy(df_Ripple)
-            print(trade_log)
-            print(f"Win Ratio: {win_ratio}")
-            print(f"Profit Percentage: {profit_percentage}%")
+            ticker = ticker + ".NS"
+            try:
+                print(f"Processing {ticker}...")
+                df_Tide, df_Wave, df_Ripple = self.Check_buy_condition(ticker)
+                #self.write_to_excel(ticker, df_Tide, df_Wave, df_Ripple)
+                trade_log, win_ratio, profit_percentage = trading_strategy(df_Ripple)
+                trade_log['Ticker'] = ticker
+                trade_log_list.append(trade_log)
+            except Exception as ex:
+                continue
+            # print(trade_log)
+            # print(f"Win Ratio: {win_ratio}")
+            # print(f"Profit Percentage: {profit_percentage}%")
             #df_Tide, df_Wave, df_Ripple = self.Check_sell_condition(ticker)
+        #combined_df = pd.concat(trade_log_list, ignore_index=True)
+        #combined_df.to_csv("Trade_log_combine.csv", index=False)
+        
 
     def Check_buy_condition(self, ticker):
         df_Tide = self.process_tide_data(ticker)
