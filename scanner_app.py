@@ -53,8 +53,8 @@ def trading_strategy(df, stop_loss_percentage=0.05, target_profit_factor=1.5):
                 trade_log.append({
                     'Buy Time': row['Datetime'],
                     'Buy Price': buy_price,
-                    'Stop Loss': stop_loss_price,
-                    'Target Price': target_price,
+                    # 'Stop Loss': stop_loss_price,
+                    # 'Target Price': target_price,
                     'Win/Loss': ''  # Initialize 'Win/Loss' key
                 })
             elif (not row['Ripple_Status'] or row['HA_Type'] == 'Solid Red') and position > 0:
