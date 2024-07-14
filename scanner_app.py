@@ -82,6 +82,56 @@ def trading_strategy(df, df_wave):
 
     return pd.DataFrame(trade_log), win_ratio, profit_percentage
 
+def trading_strategy_ripple(df, df_wave):
+    initial_capital = 100000
+    capital = initial_capital
+    position = 0
+    buy_price = 0
+    trade_log = []
+
+    try:
+        for index, row in df.iterrows():
+            if row['Ripple_Status'] and row['HA_Type'] == 'Solid Green' and position == 0:
+                position = capital / row['Close']
+                buy_price = row['Close']
+                capital = 0
+                trade_log.append({
+                    'Buy Time': row['Datetime'],
+                    'Buy Price': buy_price,
+                    'Win/Loss': ''  # Initialize 'Win/Loss' key
+                })
+            elif (not row['Ripple_Status'] or row['HA_Type'] == 'Solid Red') and position > 0: 
+                #   (df_wave is not None and not df_wave[(df_wave['Datetime'] == row['Datetime']) & (df_wave['Wave_Status'] == True)].empty)) and position > 0:
+                sell_price = row['Close']
+                capital = position * sell_price
+                position = 0
+                profit_loss = sell_price - buy_price
+                win_loss = 'Win' if profit_loss > 0 else 'Loss'
+                trade_log[-1].update({
+                    'Sell Time': row['Datetime'],
+                    'Sell Price': sell_price,
+                    'Profit/Loss': profit_loss,
+                    'Win/Loss': win_loss
+                })
+
+        # After exiting the loop, ensure all entries in trade_log have 'Win/Loss' key
+        for trade in trade_log:
+            if 'Win/Loss' not in trade:
+                trade['Win/Loss'] = ''  # Handle cases where 'Win/Loss' key was not updated
+
+        final_value = capital + (position * df.iloc[-1]['Close'])
+
+        num_trades = len(trade_log)
+        wins = sum(1 for trade in trade_log if trade['Win/Loss'] == 'Win')
+
+        win_ratio = wins / num_trades if num_trades > 0 else 0
+        profit_percentage = (final_value - initial_capital) / initial_capital * 100
+
+        return trade_log, win_ratio, profit_percentage
+
+    except Exception as ex:
+        st.error(f"An error occurred during trading: {str(ex)}")
+        return [], 0, 0
 
 
 def main():
@@ -119,11 +169,22 @@ def main():
                     # #trade_log, win_ratio, profit_percentage = trading_strategy(daily_data, stop_loss_percentage, target_profit_factor)
                     trade_log_df = pd.DataFrame(trade_log)
 
-                    st.subheader("Trade Log")
+                    st.subheader("Trade Log Wave sell")
                     st.dataframe(trade_log_df)
 
                     st.write(f"Win Ratio: {win_ratio}")
                     st.write(f"Profit Percentage: {profit_percentage}%")
+                    
+                    trade_log, win_ratio, profit_percentage = trading_strategy_ripple(daily_data, daily_wave)
+                    # #trade_log, win_ratio, profit_percentage = trading_strategy(daily_data, stop_loss_percentage, target_profit_factor)
+                    trade_log_df = pd.DataFrame(trade_log)
+
+                    st.subheader("Trade Log Ripple sell")
+                    st.dataframe(trade_log_df)
+
+                    st.write(f"Win Ratio: {win_ratio}")
+                    st.write(f"Profit Percentage: {profit_percentage}%")
+                    
                 else:
                     st.info(f"No buy signals detected for {ticker} on {flag_date} (No rows with Ripple_Status = True).")
             except Exception as ex:
