@@ -340,24 +340,33 @@ class StockScannerApp:
     def display_stock_analysis(self, ticker: str, flag_date: datetime.date, daily_data: pd.DataFrame, daily_wave: pd.DataFrame):
         st.subheader(f"Results for {ticker} on {flag_date}")
 
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(["Candlestick Chart", "Buy Signals", "Wave Sell Strategy", "Ripple Sell Strategy", "EMA Sell Strategy"])
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Candlestick Chart", "Ripple Data", "Wave Data" ,"Wave Sell Strategy", "Ripple Sell Strategy", "EMA Sell Strategy"])
 
         with tab1:
+            st.subheader(f"Ripple Data")
             fig = ChartPlotter.plot_candlestick(daily_data)
             st.plotly_chart(fig, use_container_width=True)
+            
+            st.subheader(f"Wave Data")
+            fig = ChartPlotter.plot_candlestick(daily_wave)
+            st.plotly_chart(fig, use_container_width=True)
+
 
         with tab2:
             st.dataframe(daily_data, use_container_width=True)
-
+            
         with tab3:
+            st.dataframe(daily_wave, use_container_width=True)
+
+        with tab4:
             strategy = WaveSellStrategy()
             self.display_strategy_results(strategy, daily_data, daily_wave, "Wave Sell Strategy")
 
-        with tab4:
+        with tab5:
             strategy = RippleSellStrategy()
             self.display_strategy_results(strategy, daily_data, daily_wave, "Ripple Sell Strategy")
         
-        with tab5:
+        with tab6:
             strategy = EMACrossStrategy()
             self.display_strategy_results(strategy, daily_data, daily_wave, "EMA Sell Strategy")
 
