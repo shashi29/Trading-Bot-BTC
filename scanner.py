@@ -23,7 +23,7 @@ def get_next_monday(date):
     return date + pd.Timedelta(days=days_ahead)
 
 def trading_strategy(df, df_wave):
-    initial_capital = 100000
+    initial_capital = 100000000000
     capital = initial_capital
     position = 0
     buy_price = 0
@@ -88,7 +88,7 @@ class StockScanner:
             try:
                 print(f"Processing {ticker}...")
                 df_Tide, df_Wave, df_Ripple = self.Check_buy_condition(ticker)
-                #self.write_to_excel(ticker, df_Tide, df_Wave, df_Ripple)
+                self.write_to_excel(ticker, df_Tide, df_Wave, df_Ripple)
                 trade_log, win_ratio, profit_percentage = trading_strategy(df_Ripple, df_Wave)
                 trade_log['Ticker'] = ticker
                 trade_log_list.append(trade_log)
@@ -98,8 +98,8 @@ class StockScanner:
             # print(f"Win Ratio: {win_ratio}")
             # print(f"Profit Percentage: {profit_percentage}%")
             #df_Tide, df_Wave, df_Ripple = self.Check_sell_condition(ticker)
-        combined_df = pd.concat(trade_log_list, ignore_index=True)
-        combined_df.to_csv("Trade_log_combine.csv", index=False)
+        # combined_df = pd.concat(trade_log_list, ignore_index=True)
+        # combined_df.to_csv("Trade_log_combine.csv", index=False)
         
 
     def Check_buy_condition(self, ticker):
