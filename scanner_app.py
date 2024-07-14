@@ -33,61 +33,55 @@ def plot_candlestick(df):
     
     return fig
 
-def trading_strategy(df, stop_loss_percentage=0.05, target_profit_factor=1.5):
+def trading_strategy(df, df_wave):
     initial_capital = 100000
     capital = initial_capital
     position = 0
     buy_price = 0
-    stop_loss = stop_loss_percentage
-    target_gain = target_profit_factor * stop_loss_percentage
     trade_log = []
 
-    try:
-        for index, row in df.iterrows():
-            if row['Ripple_Status'] and row['HA_Type'] == 'Solid Green' and position == 0:
-                position = capital / row['Close']
-                buy_price = row['Close']
-                stop_loss_price = buy_price - stop_loss
-                target_price = buy_price + target_gain
-                capital = 0
-                trade_log.append({
-                    'Buy Time': row['Datetime'],
-                    'Buy Price': buy_price,
-                    # 'Stop Loss': stop_loss_price,
-                    # 'Target Price': target_price,
-                    'Win/Loss': ''  # Initialize 'Win/Loss' key
-                })
-            elif (not row['Ripple_Status'] or row['HA_Type'] == 'Solid Red') and position > 0:
-                sell_price = row['Close']
-                capital = position * sell_price
-                position = 0
-                profit_loss = sell_price - buy_price
-                win_loss = 'Win' if profit_loss > 0 else 'Loss'
-                trade_log[-1].update({
-                    'Sell Time': row['Datetime'],
-                    'Sell Price': sell_price,
-                    'Profit/Loss': profit_loss,
-                    'Win/Loss': win_loss
-                })
+    for index, row in df.iterrows():
+        wave = df_wave[(df_wave['Datetime'] == row['Datetime']) & (df_wave['Wave_Status'] == False)]
+        if row['Ripple_Status'] and row['HA_Type'] == 'Solid Green' and position == 0:
+            position = capital / row['Close']
+            buy_price = row['Close']
+            capital = 0
+            trade_log.append({
+                'Buy Time': row['Datetime'],
+                'Buy Price': buy_price,
+                # 'Stop Loss': stop_loss_price,
+                # 'Target Price': target_price,
+                'Win/Loss': ''  # Initialize 'Win/Loss' key
+            })
+        elif len(wave) and position > 0:
+            sell_price = row['Close']
+            capital = position * sell_price
+            position = 0
+            profit_loss = sell_price - buy_price
+            win_loss = 'Win' if profit_loss > 0 else 'Loss'
+            trade_log[-1].update({
+                'Sell Time': row['Datetime'],
+                'Sell Price': sell_price,
+                'Profit/Loss': profit_loss,
+                'Win/Loss': win_loss
+            })
 
-        # After exiting the loop, ensure all entries in trade_log have 'Win/Loss' key
-        for trade in trade_log:
-            if 'Win/Loss' not in trade:
-                trade['Win/Loss'] = ''  # Handle cases where 'Win/Loss' key was not updated
+    # After exiting the loop, ensure all entries in trade_log have 'Win/Loss' key
+    for trade in trade_log:
+        if 'Win/Loss' not in trade:
+            trade['Win/Loss'] = ''  # Handle cases where 'Win/Loss' key was not updated
 
-        final_value = capital + (position * df.iloc[-1]['Close'])
+    final_value = capital + (position * df.iloc[-1]['Close'])
 
-        num_trades = len(trade_log)
-        wins = sum(1 for trade in trade_log if trade['Win/Loss'] == 'Win')
+    num_trades = len(trade_log)
+    wins = sum(1 for trade in trade_log if trade['Win/Loss'] == 'Win')
+    #total_profit = sum(trade['Profit/Loss'] for trade in trade_log)
 
-        win_ratio = wins / num_trades if num_trades > 0 else 0
-        profit_percentage = (final_value - initial_capital) / initial_capital * 100
+    win_ratio = wins / num_trades if num_trades > 0 else 0
+    profit_percentage = (final_value - initial_capital) / initial_capital * 100
 
-        return trade_log, win_ratio, profit_percentage
+    return pd.DataFrame(trade_log), win_ratio, profit_percentage
 
-    except Exception as ex:
-        st.error(f"An error occurred during trading: {str(ex)}")
-        return [], 0, 0
 
 
 def main():
@@ -108,6 +102,8 @@ def main():
 
                 df_Ripple['Date'] = df_Ripple['Datetime'].dt.date
                 daily_data = df_Ripple[df_Ripple['Date'] >= flag_date]
+                df_Wave['Date'] = df_Wave['Datetime'].dt.date
+                daily_wave = df_Wave[df_Wave['Date'] >= flag_date]
 
                 if daily_data['Ripple_Status'].any():
                     buy_signals = daily_data[['Datetime', 'HA_Open', 'HA_High', 'HA_Low', 'HA_Close', 'Volume', 'HA_Type', 'HA_Green', 'HA_Red', 'Pattern', 'Price_Above_EMA', 'RSI_Type', 'ADX_14', 'ADX Status', 'Stochastic_PCO', 'Stochastic_Oversold', 'Stochastic_PC_from_Oversold', 'Below_618']]
@@ -119,7 +115,8 @@ def main():
                     fig = plot_candlestick(daily_data)
                     st.plotly_chart(fig)
 
-                    trade_log, win_ratio, profit_percentage = trading_strategy(daily_data, stop_loss_percentage, target_profit_factor)
+                    trade_log, win_ratio, profit_percentage = trading_strategy(daily_data, daily_wave)
+                    # #trade_log, win_ratio, profit_percentage = trading_strategy(daily_data, stop_loss_percentage, target_profit_factor)
                     trade_log_df = pd.DataFrame(trade_log)
 
                     st.subheader("Trade Log")

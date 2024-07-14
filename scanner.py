@@ -22,21 +22,18 @@ def get_next_monday(date):
     days_ahead = 7 - date.weekday()  # Monday is 0 and Sunday is 6
     return date + pd.Timedelta(days=days_ahead)
 
-def trading_strategy(df, stop_loss_percentage=0.05, target_profit_factor=1.5):
+def trading_strategy(df, df_wave):
     initial_capital = 100000
     capital = initial_capital
     position = 0
     buy_price = 0
-    stop_loss = stop_loss_percentage
-    target_gain = target_profit_factor * stop_loss_percentage
     trade_log = []
 
     for index, row in df.iterrows():
+        wave = df_wave[(df_wave['Datetime'] == row['Datetime']) & (df_wave['Wave_Status'] == False)]
         if row['Ripple_Status'] and row['HA_Type'] == 'Solid Green' and position == 0:
             position = capital / row['Close']
             buy_price = row['Close']
-            stop_loss_price = buy_price - stop_loss
-            target_price = buy_price + target_gain
             capital = 0
             trade_log.append({
                 'Buy Time': row['Datetime'],
@@ -45,7 +42,7 @@ def trading_strategy(df, stop_loss_percentage=0.05, target_profit_factor=1.5):
                 # 'Target Price': target_price,
                 'Win/Loss': ''  # Initialize 'Win/Loss' key
             })
-        elif (not row['Ripple_Status'] or row['HA_Type'] == 'Solid Red') and position > 0:
+        elif len(wave) and position > 0:
             sell_price = row['Close']
             capital = position * sell_price
             position = 0
@@ -92,7 +89,7 @@ class StockScanner:
                 print(f"Processing {ticker}...")
                 df_Tide, df_Wave, df_Ripple = self.Check_buy_condition(ticker)
                 #self.write_to_excel(ticker, df_Tide, df_Wave, df_Ripple)
-                trade_log, win_ratio, profit_percentage = trading_strategy(df_Ripple)
+                trade_log, win_ratio, profit_percentage = trading_strategy(df_Ripple, df_Wave)
                 trade_log['Ticker'] = ticker
                 trade_log_list.append(trade_log)
             except Exception as ex:
@@ -101,8 +98,8 @@ class StockScanner:
             # print(f"Win Ratio: {win_ratio}")
             # print(f"Profit Percentage: {profit_percentage}%")
             #df_Tide, df_Wave, df_Ripple = self.Check_sell_condition(ticker)
-        #combined_df = pd.concat(trade_log_list, ignore_index=True)
-        #combined_df.to_csv("Trade_log_combine.csv", index=False)
+        combined_df = pd.concat(trade_log_list, ignore_index=True)
+        combined_df.to_csv("Trade_log_combine.csv", index=False)
         
 
     def Check_buy_condition(self, ticker):
