@@ -87,7 +87,10 @@ class StockScanner:
             ticker = ticker + ".NS"
             try:
                 print(f"Processing {ticker}...")
-                df_Tide, df_Wave, df_Ripple = self.Check_buy_condition(ticker)
+                df_Tide = self.process_tide_data(ticker, period="3mo", interval="1wk")
+                df_Wave = self.process_wave_data(ticker, period="3mo", interval="1d")
+                df_Ripple = self.process_ripple_data(ticker, period="3mo", interval="1h")
+                df_Tide, df_Wave, df_Ripple = self.Check_buy_condition(ticker, df_Tide, df_Wave, df_Ripple)
                 self.write_to_excel(ticker, df_Tide, df_Wave, df_Ripple)
                 trade_log, win_ratio, profit_percentage = trading_strategy(df_Ripple, df_Wave)
                 trade_log['Ticker'] = ticker
@@ -102,11 +105,7 @@ class StockScanner:
         # combined_df.to_csv("Trade_log_combine.csv", index=False)
         
 
-    def Check_buy_condition(self, ticker):
-        df_Tide = self.process_tide_data(ticker)
-        df_Wave = self.process_wave_data(ticker)
-        df_Ripple = self.process_ripple_data(ticker)
-
+    def Check_buy_condition(self, ticker, df_Tide, df_Wave, df_Ripple):
         #Filter date for those tide is green
         tide_status_date_list = df_Tide[df_Tide['HA_Green'] == True]['Date'].unique()
 
@@ -118,8 +117,11 @@ class StockScanner:
             next_date_to_filter = date_to_filter + pd.Timedelta(days=1)
 
             #Create Wave Green Status for next full day
+            date_column = "Datetime"
+            if "Datetime" not in df_Wave.columns:
+                date_column = "Date"
             df_Wave['Wave_Status'] = np.where(
-                (df_Wave['Datetime'].dt.date.isin([date_to_filter, next_date_to_filter])) &
+                (df_Wave[date_column].dt.date.isin([date_to_filter, next_date_to_filter])) &
                 (df_Wave['HA_Green'] == True) &
                 (df_Wave['EMA_Slope'] > 0) &
                 (df_Wave['EMA_Slope_Up'] == True),
@@ -127,20 +129,24 @@ class StockScanner:
             )
             
             wave_status_date_list = df_Wave[(df_Wave['Wave_Status'] == True) & \
-                                            (df_Wave['Datetime'].dt.date.isin([date_to_filter, next_date_to_filter]))]['Datetime'].unique()
+                                            (df_Wave[date_column].dt.date.isin([date_to_filter, next_date_to_filter]))][date_column].unique()
                         
-            for wave_status_date in wave_status_date_list:            
-                if wave_status_date.time() == self.end_trading_time:
-                    if wave_status_date.weekday() == 4:  # If Friday
-                        next_monday = get_next_monday(wave_status_date)
-                        start_time = next_monday + pd.Timedelta(hours=9)
-                        end_time = next_monday + pd.Timedelta(hours=10)
+            for wave_status_date in wave_status_date_list:
+                if "Datetime" in df_Wave.columns:            
+                    if wave_status_date.time() == self.end_trading_time:
+                        if wave_status_date.weekday() == 4:  # If Friday
+                            next_monday = get_next_monday(wave_status_date)
+                            start_time = next_monday + pd.Timedelta(hours=9)
+                            end_time = next_monday + pd.Timedelta(hours=10)
+                        else:
+                            start_time = wave_status_date + pd.Timedelta(hours=18)
+                            end_time = wave_status_date + pd.Timedelta(hours=19)
                     else:
-                        start_time = wave_status_date + pd.Timedelta(hours=18)
-                        end_time = wave_status_date + pd.Timedelta(hours=19)
+                        start_time = wave_status_date + pd.Timedelta(hours=1)
+                        end_time = wave_status_date + pd.Timedelta(hours=2)
                 else:
                     start_time = wave_status_date + pd.Timedelta(hours=1)
-                    end_time = wave_status_date + pd.Timedelta(hours=2)
+                    end_time = wave_status_date + pd.Timedelta(hours=24)
                 # Check conditions and assign Ripple_Status using numpy where
                 df_Ripple['Ripple_Status'] = np.where(
                     (df_Ripple['Datetime'].between(start_time, end_time)) &
@@ -174,22 +180,22 @@ class StockScanner:
         return df_Tide, df_Wave, df_Ripple
   
 
-    def process_tide_data(self, ticker):
-        tide_config = self.config.get_time_frame('TIDE')
-        df = fetch_data(ticker, **tide_config)
+    def process_tide_data(self, ticker, period='1mo', interval='1d'):
+        #tide_config = self.config.get_time_frame('TIDE')
+        df = fetch_data(ticker, period=period, interval=interval)
         df = calculate_heikin_ashi(df)
         return df
 
-    def process_wave_data(self, ticker):
-        wave_config = self.config.get_time_frame('WAVE')
-        df = fetch_data(ticker, **wave_config)
+    def process_wave_data(self, ticker, period='1mo', interval='1h'):
+        #wave_config = self.config.get_time_frame('WAVE')
+        df = fetch_data(ticker, period=period, interval=interval)
         df = calculate_heikin_ashi(df)
         df = calculate_ema(df, self.config.get_indicator_params('EMA')['period'])
         return df
 
-    def process_ripple_data(self, ticker):
-        ripple_config = self.config.get_time_frame('RIPPLE')
-        df = fetch_data(ticker, **ripple_config)
+    def process_ripple_data(self, ticker, period='1mo', interval='15m'):
+        #ripple_config = self.config.get_time_frame('RIPPLE')
+        df = fetch_data(ticker, period=period, interval=interval)
         df = calculate_heikin_ashi(df)
         df = calculate_ema_ripple(df, self.config.get_indicator_params('EMA')['period'])
         df = calculate_bollinger_bands(df, **self.config.get_indicator_params('BOLLINGER_BANDS'))
