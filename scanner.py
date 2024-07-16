@@ -22,56 +22,6 @@ def get_next_monday(date):
     days_ahead = 7 - date.weekday()  # Monday is 0 and Sunday is 6
     return date + pd.Timedelta(days=days_ahead)
 
-def trading_strategy(df, df_wave):
-    initial_capital = 100000000000
-    capital = initial_capital
-    position = 0
-    buy_price = 0
-    trade_log = []
-
-    for index, row in df.iterrows():
-        wave = df_wave[(df_wave['Datetime'] == row['Datetime']) & (df_wave['Wave_Status'] == False)]
-        if row['Ripple_Status'] and row['HA_Type'] == 'Solid Green' and position == 0:
-            position = capital / row['Close']
-            buy_price = row['Close']
-            capital = 0
-            trade_log.append({
-                'Buy Time': row['Datetime'],
-                'Buy Price': buy_price,
-                # 'Stop Loss': stop_loss_price,
-                # 'Target Price': target_price,
-                'Win/Loss': ''  # Initialize 'Win/Loss' key
-            })
-        elif len(wave) and position > 0:
-            sell_price = row['Close']
-            capital = position * sell_price
-            position = 0
-            profit_loss = sell_price - buy_price
-            win_loss = 'Win' if profit_loss > 0 else 'Loss'
-            trade_log[-1].update({
-                'Sell Time': row['Datetime'],
-                'Sell Price': sell_price,
-                'Profit/Loss': profit_loss,
-                'Win/Loss': win_loss
-            })
-
-    # After exiting the loop, ensure all entries in trade_log have 'Win/Loss' key
-    for trade in trade_log:
-        if 'Win/Loss' not in trade:
-            trade['Win/Loss'] = ''  # Handle cases where 'Win/Loss' key was not updated
-
-    final_value = capital + (position * df.iloc[-1]['Close'])
-
-    num_trades = len(trade_log)
-    wins = sum(1 for trade in trade_log if trade['Win/Loss'] == 'Win')
-    #total_profit = sum(trade['Profit/Loss'] for trade in trade_log)
-
-    win_ratio = wins / num_trades if num_trades > 0 else 0
-    profit_percentage = (final_value - initial_capital) / initial_capital * 100
-
-    return pd.DataFrame(trade_log), win_ratio, profit_percentage
-
-
 class StockScanner:
     def __init__(self, config):
         self.config = config
@@ -87,14 +37,11 @@ class StockScanner:
             ticker = ticker + ".NS"
             try:
                 print(f"Processing {ticker}...")
-                df_Tide = self.process_tide_data(ticker, period="3mo", interval="1wk")
-                df_Wave = self.process_wave_data(ticker, period="3mo", interval="1d")
-                df_Ripple = self.process_ripple_data(ticker, period="3mo", interval="1h")
+                df_Tide = self.process_tide_data(ticker)#, period="3mo", interval="1wk")
+                df_Wave = self.process_wave_data(ticker)#, period="3mo", interval="1d")
+                df_Ripple = self.process_ripple_data(ticker)#, period="3mo", interval="1h")
                 df_Tide, df_Wave, df_Ripple = self.Check_buy_condition(ticker, df_Tide, df_Wave, df_Ripple)
                 self.write_to_excel(ticker, df_Tide, df_Wave, df_Ripple)
-                trade_log, win_ratio, profit_percentage = trading_strategy(df_Ripple, df_Wave)
-                trade_log['Ticker'] = ticker
-                trade_log_list.append(trade_log)
             except Exception as ex:
                 continue
             # print(trade_log)
@@ -117,11 +64,8 @@ class StockScanner:
             next_date_to_filter = date_to_filter + pd.Timedelta(days=1)
 
             #Create Wave Green Status for next full day
-            date_column = "Datetime"
-            if "Datetime" not in df_Wave.columns:
-                date_column = "Date"
             df_Wave['Wave_Status'] = np.where(
-                (df_Wave[date_column].dt.date.isin([date_to_filter, next_date_to_filter])) &
+                (df_Wave["Datetime"].dt.date.isin([date_to_filter, next_date_to_filter])) &
                 (df_Wave['HA_Green'] == True) &
                 (df_Wave['EMA_Slope'] > 0) &
                 (df_Wave['EMA_Slope_Up'] == True),
@@ -129,24 +73,21 @@ class StockScanner:
             )
             
             wave_status_date_list = df_Wave[(df_Wave['Wave_Status'] == True) & \
-                                            (df_Wave[date_column].dt.date.isin([date_to_filter, next_date_to_filter]))][date_column].unique()
+                                            (df_Wave["Datetime"].dt.date.isin([date_to_filter, next_date_to_filter]))]["Datetime"].unique()
                         
             for wave_status_date in wave_status_date_list:
-                if "Datetime" in df_Wave.columns:            
-                    if wave_status_date.time() == self.end_trading_time:
-                        if wave_status_date.weekday() == 4:  # If Friday
-                            next_monday = get_next_monday(wave_status_date)
-                            start_time = next_monday + pd.Timedelta(hours=9)
-                            end_time = next_monday + pd.Timedelta(hours=10)
-                        else:
-                            start_time = wave_status_date + pd.Timedelta(hours=18)
-                            end_time = wave_status_date + pd.Timedelta(hours=19)
+                if wave_status_date.time() == self.end_trading_time:
+                    if wave_status_date.weekday() == 4:  # If Friday
+                        next_monday = get_next_monday(wave_status_date)
+                        start_time = next_monday + pd.Timedelta(hours=9)
+                        end_time = next_monday + pd.Timedelta(hours=10)
                     else:
-                        start_time = wave_status_date + pd.Timedelta(hours=1)
-                        end_time = wave_status_date + pd.Timedelta(hours=2)
+                        start_time = wave_status_date + pd.Timedelta(hours=18)
+                        end_time = wave_status_date + pd.Timedelta(hours=19)
                 else:
                     start_time = wave_status_date + pd.Timedelta(hours=1)
-                    end_time = wave_status_date + pd.Timedelta(hours=24)
+                    end_time = wave_status_date + pd.Timedelta(hours=2)
+
                 # Check conditions and assign Ripple_Status using numpy where
                 df_Ripple['Ripple_Status'] = np.where(
                     (df_Ripple['Datetime'].between(start_time, end_time)) &

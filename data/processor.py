@@ -8,7 +8,8 @@ def calculate_heikin_ashi_1day(df):
     bars['HA_Close'] = (bars['Open'] + bars['High'] + bars['Low'] + bars['Close']) / 4
 
     # Initialize the first HA_Open value
-    bars.at[0, 'HA_Open'] = (bars.at[0, 'Open'] + bars.at[0, 'Close']) / 2
+    bars['HA_Open'] = 0.0
+    bars.iloc[0, bars.columns.get_loc('HA_Open')] = bars.iloc[0, bars.columns.get_loc('Open')]  # First candle open
     
     # Calculate HA_Open for the rest of the rows
     for i in range(1, len(bars)):

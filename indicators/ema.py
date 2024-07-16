@@ -1,4 +1,5 @@
 import pandas as pd
+pd.set_option('future.no_silent_downcasting', True)
 
 def calculate_ema(df, period=50):
     df['EMA'] = df['Close'].ewm(span=period, adjust=False).mean()
