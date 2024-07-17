@@ -17,7 +17,7 @@ class Config:
     # "ITI", "WEALTH", "LAL", "HITECHCORP", "KSOLVES", "XCHANGING", 
     # "HARDWYN", "GLS", "KAMOPAINTS", "VINATIORGA", "PIXTRANS", 
     # "SBCL", "MON100", "MTNL", "NDLVENTURE"
-    "GRASIM"
+    "ongc"
         ]
         
         self.TIME_FRAMES = {

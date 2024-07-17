@@ -16,7 +16,8 @@ import numpy as np
 import pandas as pd
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
+from trading_strategy.sell_strategy import *
+ 
 # Helper function to get the next trading day after Friday
 def get_next_monday(date):
     days_ahead = 7 - date.weekday()  # Monday is 0 and Sunday is 6
@@ -35,15 +36,16 @@ class StockScanner:
         trade_log_list = list()
         for ticker in self.config.get_tickers():
             ticker = ticker + ".NS"
-            try:
-                print(f"Processing {ticker}...")
-                df_Tide = self.process_tide_data(ticker)#, period="3mo", interval="1wk")
-                df_Wave = self.process_wave_data(ticker)#, period="3mo", interval="1d")
-                df_Ripple = self.process_ripple_data(ticker)#, period="3mo", interval="1h")
-                df_Tide, df_Wave, df_Ripple = self.Check_buy_condition(ticker, df_Tide, df_Wave, df_Ripple)
-                self.write_to_excel(ticker, df_Tide, df_Wave, df_Ripple)
-            except Exception as ex:
-                continue
+            print(f"Processing {ticker}...")
+            df_Tide = self.process_tide_data(ticker, period="3mo", interval="1wk")
+            df_Wave = self.process_wave_data(ticker, period="3mo", interval="1d")
+            df_Ripple = self.process_ripple_data(ticker, period="3mo", interval="1h")
+            # df_Tide, df_Wave, df_Ripple = self.Check_buy_condition(ticker, df_Tide, df_Wave, df_Ripple)
+            df_Tide, df_Wave, df_Ripple = self.Check_buy_condition_ripple_1hr(ticker, df_Tide, df_Wave, df_Ripple)
+            strategy = WaveSellStrategyRipple1hr()
+            trade_log, win_ratio, average_profit_percentage = strategy.execute(df_Ripple, df_Wave)
+            self.write_to_excel(ticker, df_Tide, df_Wave, df_Ripple)
+
             # print(trade_log)
             # print(f"Win Ratio: {win_ratio}")
             # print(f"Profit Percentage: {profit_percentage}%")
@@ -100,6 +102,62 @@ class StockScanner:
                 ripple_status_date_list = df_Ripple[
                     (df_Ripple['Ripple_Status'] == True) & 
                     (df_Ripple['Datetime'].between(start_time, end_time))]['Datetime'].unique()
+                
+            #     for ripple_status_date in ripple_status_date_list:
+            #         print(f"Buy at {ripple_status_date} on {ticker}")
+            # print("-----------------------------------------------------------------------------------------")
+
+        #Buy Condition 2: 
+        df_Ripple = check_bollinger_band_condition(df_Ripple)
+        #Buy Condition 3: Ripple Bullish Candlestick pattern
+        df_Ripple = check_bullish_candlestick_pattern(df_Ripple)
+        #Buy Condition 4: Ripple RSI
+        df_Ripple = check_rsi_conditions(df_Ripple)
+        #Buy Condition 5: Ripple ADX Forming Ungli
+        df_Ripple = check_adx_conditions(df_Ripple)
+        #Buy Condition 6: •	Ripple Stochastic PCO
+        df_Ripple = check_stochastic_conditions(df_Ripple)
+        #Buy Condition 7: Fib < 61.8% of last wave
+        df_Ripple = predict_below_618(df_Ripple)
+
+        return df_Tide, df_Wave, df_Ripple
+    
+    def Check_buy_condition_ripple_1hr(self, ticker, df_Tide, df_Wave, df_Ripple):
+        #Filter date for those tide is green
+        tide_status_date_list = df_Tide[df_Tide['HA_Green'] == True]['Date'].unique()
+
+        df_Wave['Wave_Status'] = False
+        df_Ripple['Ripple_Status'] = False
+
+        for tide_status_date in tide_status_date_list:
+            week_start = pd.to_datetime(tide_status_date)
+            week_end = week_start + pd.Timedelta(days=6)
+
+            #Create Wave Green Status for next full day
+            df_Wave['Wave_Status'] = np.where(
+                (df_Wave["Date"].between(week_start, week_end)) &
+                (df_Wave['HA_Green'] == True) &
+                (df_Wave['EMA_Slope'] > 0) &
+                (df_Wave['EMA_Slope_Up'] == True),
+                True, df_Wave['Wave_Status']
+            )
+            
+            wave_status_date_list = df_Wave[(df_Wave['Wave_Status'] == True) & \
+                                            (df_Wave["Date"].between(week_start, week_end))]["Date"].unique()
+                        
+            for wave_status_date in wave_status_date_list:
+                # Check conditions and assign Ripple_Status using numpy where
+                df_Ripple['Ripple_Status'] = np.where(
+                    (df_Ripple['Datetime'].dt.date == wave_status_date.date()) &
+                    (df_Ripple['HA_Green']) &
+                    (df_Ripple['Price_Above_EMA']) &
+                    (df_Ripple['FBD_Signal'] == False),
+                    True, df_Ripple['Ripple_Status']
+                )
+                
+                ripple_status_date_list = df_Ripple[
+                    (df_Ripple['Ripple_Status'] == True) & 
+                    (df_Ripple['Datetime'].dt.date == wave_status_date.date())]['Datetime'].unique()
                 
             #     for ripple_status_date in ripple_status_date_list:
             #         print(f"Buy at {ripple_status_date} on {ticker}")

@@ -6,7 +6,7 @@ import logging
 from typing import Tuple
 from config import config
 from scanner import StockScanner
-from trading_strategy.sell_strategy import TradingStrategy, WaveSellStrategy, RippleSellStrategy, EMACrossStrategy
+from trading_strategy.sell_strategy import *
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -49,13 +49,20 @@ class StockAnalyzer:
             df_Tide = self.scanner.process_tide_data(ticker, period=period_tide, interval=interval_tide)
             df_Wave = self.scanner.process_wave_data(ticker, period=period_wave, interval=interval_wave)
             df_Ripple = self.scanner.process_ripple_data(ticker, period=period_ripple, interval=interval_ripple)
-            df_Tide, df_Wave, df_Ripple = self.scanner.Check_buy_condition(ticker, df_Tide, df_Wave, df_Ripple)
-            df_Ripple['Date'] = df_Ripple['Datetime'].dt.date
-            daily_data = df_Ripple[df_Ripple['Date'] >= flag_date]
-            if "Date" not in df_Wave.columns:
+            if setting == "Ripple 15min":
+                df_Tide, df_Wave, df_Ripple = self.scanner.Check_buy_condition(ticker, df_Tide, df_Wave, df_Ripple)
+                df_Ripple['Date'] = df_Ripple['Datetime'].dt.date
+                daily_ripple = df_Ripple[df_Ripple['Date'] >= flag_date]
                 df_Wave['Date'] = df_Wave['Datetime'].dt.date
-            #daily_wave = df_Wave[df_Wave['Date'] >= flag_date]
-            return daily_data, df_Wave#daily_wave
+                daily_wave = df_Wave[df_Wave['Date'] >= flag_date]
+            else:
+                df_Tide, df_Wave, df_Ripple = self.scanner.Check_buy_condition_ripple_1hr(ticker, df_Tide, df_Wave, df_Ripple)
+                df_Ripple['Date'] = df_Ripple['Datetime'].dt.date
+                daily_ripple = df_Ripple[df_Ripple['Date'] >= flag_date]
+                flag_date = pd.to_datetime(flag_date)
+                daily_wave = df_Wave[df_Wave['Date'] >= flag_date]
+                logger.info(f"Shape of Wave data {daily_wave.shape} and Ripple Data {daily_ripple.shape}")
+            return daily_ripple, daily_wave
         except Exception as e:
             logger.error(f"Error analyzing stock {ticker} : {str(e)}", exc_info=True)
             raise
@@ -90,9 +97,9 @@ class StockScannerApp:
             interval_ripple = "15m"
         else:  # Ripple 1h
             period_tide = "3mo"
-            interval_tide = "1mo"
+            interval_tide = "1wk"
             period_wave = "3mo"
-            interval_wave = "1wk"
+            interval_wave = "1d"
             period_ripple = "3mo"
             interval_ripple = "1h"
 
@@ -109,7 +116,7 @@ class StockScannerApp:
                     daily_data, daily_wave = self.analyzer.analyze_stock(ticker, flag_date, period_tide, interval_tide, period_wave, interval_wave, period_ripple, interval_ripple, setting)
 
                 if daily_data['Ripple_Status'].any():
-                    self.display_stock_analysis(ticker, flag_date, daily_data, daily_wave)
+                    self.display_stock_analysis(ticker, flag_date, daily_data, daily_wave, setting)
                 else:
                     st.info(f"No buy signals detected for {ticker} on {flag_date}.")
             except Exception as e:
@@ -120,7 +127,7 @@ class StockScannerApp:
         st.subheader("Overall Profit with Strategy")
         st.dataframe(buy_summary, use_container_width=True)
 
-    def display_stock_analysis(self, ticker: str, flag_date: datetime.date, daily_data: pd.DataFrame, daily_wave: pd.DataFrame):
+    def display_stock_analysis(self, ticker: str, flag_date: datetime.date, daily_data: pd.DataFrame, daily_wave: pd.DataFrame, setting:str="Ripple 15min"):
         st.subheader(f"Results for {ticker} on {flag_date}")
 
         tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Candlestick Chart", "Ripple Data", "Wave Data" ,"Wave Sell Strategy", "Ripple Sell Strategy", "EMA Sell Strategy"])
@@ -141,15 +148,24 @@ class StockScannerApp:
             st.dataframe(daily_wave, use_container_width=True)
 
         with tab4:
-            strategy = WaveSellStrategy()
+            if setting == "Ripple 15min":
+                strategy = WaveSellStrategy()
+            else:
+                strategy = WaveSellStrategyRipple1hr()
             self.display_strategy_results(strategy, daily_data, daily_wave, "Wave Sell Strategy")
 
         with tab5:
-            strategy = RippleSellStrategy()
+            if setting == "Ripple 15min":
+                strategy = RippleSellStrategy()
+            else:
+                strategy = RippleSellStrategyRipple1hr()
             self.display_strategy_results(strategy, daily_data, daily_wave, "Ripple Sell Strategy")
         
         with tab6:
-            strategy = EMACrossStrategy()
+            if setting == "Ripple 15min":
+                strategy = EMACrossStrategy()
+            else:
+                strategy = EMACrossStrategyRipple1hr()
             self.display_strategy_results(strategy, daily_data, daily_wave, "EMA Sell Strategy")
 
     def display_strategy_results(self, strategy: TradingStrategy, daily_data: pd.DataFrame, daily_wave: pd.DataFrame, strategy_name: str):
