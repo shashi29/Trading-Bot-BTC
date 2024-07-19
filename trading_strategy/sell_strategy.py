@@ -27,10 +27,10 @@ class WaveSellStrategyRipple1hr(TradingStrategy):
 
         # Convert 'Datetime' to datetime objects
         df['Datetime'] = pd.to_datetime(df['Datetime'])
-        df_wave['Date'] = pd.to_datetime(df_wave['Date'])
+        df_wave['Datetime'] = pd.to_datetime(df_wave['Datetime'])
 
         for index, row in df.iterrows():
-            wave = df_wave[(df_wave['Date'].dt.date == row['Datetime'].date()) & (df_wave['HA_Type'] == "Solid Red")]
+            wave = df_wave[(df_wave['Datetime'].dt.date == row['Datetime'].date()) & (df_wave['HA_Type'] == "Solid Red")]
 
             if row['Ripple_Status'] and row['HA_Type'] == 'Solid Green' and position == 0:
                 position = capital / row['Close']

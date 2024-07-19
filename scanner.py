@@ -135,7 +135,7 @@ class StockScanner:
 
             #Create Wave Green Status for next full day
             df_Wave['Wave_Status'] = np.where(
-                (df_Wave["Date"].between(week_start, week_end)) &
+                (df_Wave["Datetime"].between(week_start, week_end)) &
                 (df_Wave['HA_Green'] == True) &
                 (df_Wave['EMA_Slope'] > 0) &
                 (df_Wave['EMA_Slope_Up'] == True),
@@ -143,7 +143,7 @@ class StockScanner:
             )
             
             wave_status_date_list = df_Wave[(df_Wave['Wave_Status'] == True) & \
-                                            (df_Wave["Date"].between(week_start, week_end))]["Date"].unique()
+                                            (df_Wave["Datetime"].between(week_start, week_end))]["Datetime"].unique()
                         
             for wave_status_date in wave_status_date_list:
                 # Check conditions and assign Ripple_Status using numpy where
