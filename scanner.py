@@ -37,14 +37,14 @@ class StockScanner:
         for ticker in self.config.get_tickers():
             ticker = ticker + ".NS"
             print(f"Processing {ticker}...")
-            df_Tide = self.process_tide_data(ticker, period="3mo", interval="1wk")
-            df_Wave = self.process_wave_data(ticker, period="3mo", interval="1d")
-            df_Ripple = self.process_ripple_data(ticker, period="3mo", interval="1h")
+            df_Tide = self.process_tide_data(ticker)#, period="3mo", interval="1wk")
+            df_Wave = self.process_wave_data(ticker)#, period="3mo", interval="1d")
+            df_Ripple = self.process_ripple_data(ticker)#, period="3mo", interval="1h")
             # df_Tide, df_Wave, df_Ripple = self.Check_buy_condition(ticker, df_Tide, df_Wave, df_Ripple)
             df_Tide, df_Wave, df_Ripple = self.Check_buy_condition_ripple_1hr(ticker, df_Tide, df_Wave, df_Ripple)
             strategy = WaveSellStrategyRipple1hr()
             trade_log, win_ratio, average_profit_percentage = strategy.execute(df_Ripple, df_Wave)
-            self.write_to_excel(ticker, df_Tide, df_Wave, df_Ripple)
+            #self.write_to_excel(ticker, df_Tide, df_Wave, df_Ripple)
 
             # print(trade_log)
             # print(f"Win Ratio: {win_ratio}")
@@ -78,6 +78,12 @@ class StockScanner:
                                             (df_Wave["Datetime"].dt.date.isin([date_to_filter, next_date_to_filter]))]["Datetime"].unique()
                         
             for wave_status_date in wave_status_date_list:
+                # Check conditions and assign Ripple_Status using numpy where
+                wave_status_date = np.datetime64(wave_status_date)
+
+                # Convert to pandas.Timestamp and extract the date
+                wave_status_date = pd.Timestamp(wave_status_date)
+                                
                 if wave_status_date.time() == self.end_trading_time:
                     if wave_status_date.weekday() == 4:  # If Friday
                         next_monday = get_next_monday(wave_status_date)
@@ -147,8 +153,13 @@ class StockScanner:
                         
             for wave_status_date in wave_status_date_list:
                 # Check conditions and assign Ripple_Status using numpy where
+                wave_status_date = np.datetime64(wave_status_date)
+
+                # Convert to pandas.Timestamp and extract the date
+                wave_status_date = pd.Timestamp(wave_status_date).date()
+                
                 df_Ripple['Ripple_Status'] = np.where(
-                    (df_Ripple['Datetime'].dt.date == wave_status_date.date()) &
+                    (df_Ripple['Datetime'].dt.date == wave_status_date) &
                     (df_Ripple['HA_Green']) &
                     (df_Ripple['Price_Above_EMA']) &
                     (df_Ripple['FBD_Signal'] == False),
@@ -157,7 +168,7 @@ class StockScanner:
                 
                 ripple_status_date_list = df_Ripple[
                     (df_Ripple['Ripple_Status'] == True) & 
-                    (df_Ripple['Datetime'].dt.date == wave_status_date.date())]['Datetime'].unique()
+                    (df_Ripple['Datetime'].dt.date == wave_status_date)]['Datetime'].unique()
                 
             #     for ripple_status_date in ripple_status_date_list:
             #         print(f"Buy at {ripple_status_date} on {ticker}")

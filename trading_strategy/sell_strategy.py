@@ -57,20 +57,20 @@ class WaveSellStrategyRipple1hr(TradingStrategy):
                 })
 
         # Check for any open trades on the last day
-        if position > 0:
-            last_row = df.iloc[-1]
-            sell_price = last_row['Close']
-            capital = position * sell_price
-            profit_loss = sell_price - buy_price
-            profit_percentage = (profit_loss / buy_price) * 100
-            win_loss = 'Win' if profit_loss > 0 else 'Loss'
-            trade_log[-1].update({
-                'Sell Time': last_row['Datetime'],
-                'Sell Price': sell_price,
-                'Profit/Loss': profit_loss,
-                'Profit Percentage': profit_percentage,
-                'Win/Loss': win_loss
-            })
+        # if position > 0:
+        #     last_row = df.iloc[-1]
+        #     sell_price = last_row['Close']
+        #     capital = position * sell_price
+        #     profit_loss = sell_price - buy_price
+        #     profit_percentage = (profit_loss / buy_price) * 100
+        #     win_loss = 'Win' if profit_loss > 0 else 'Loss'
+        #     trade_log[-1].update({
+        #         'Sell Time': last_row['Datetime'],
+        #         'Sell Price': sell_price,
+        #         'Profit/Loss': profit_loss,
+        #         'Profit Percentage': profit_percentage,
+        #         'Win/Loss': win_loss
+        #     })
 
         # After exiting the loop, ensure all entries in trade_log have 'Win/Loss' key
         for trade in trade_log:
@@ -130,20 +130,20 @@ class RippleSellStrategyRipple1hr(TradingStrategy):
                     })
 
             # Check for any open trades on the last day
-            if position > 0:
-                last_row = df.iloc[-1]
-                sell_price = last_row['Close']
-                capital = position * sell_price
-                profit_loss = sell_price - buy_price
-                profit_percentage = (profit_loss / buy_price) * 100
-                win_loss = 'Win' if profit_loss > 0 else 'Loss'
-                trade_log[-1].update({
-                    'Sell Time': last_row['Datetime'],
-                    'Sell Price': sell_price,
-                    'Profit/Loss': profit_loss,
-                    'Profit Percentage': profit_percentage,
-                    'Win/Loss': win_loss
-                })
+            # if position > 0:
+            #     last_row = df.iloc[-1]
+            #     sell_price = last_row['Close']
+            #     capital = position * sell_price
+            #     profit_loss = sell_price - buy_price
+            #     profit_percentage = (profit_loss / buy_price) * 100
+            #     win_loss = 'Win' if profit_loss > 0 else 'Loss'
+            #     trade_log[-1].update({
+            #         'Sell Time': last_row['Datetime'],
+            #         'Sell Price': sell_price,
+            #         'Profit/Loss': profit_loss,
+            #         'Profit Percentage': profit_percentage,
+            #         'Win/Loss': win_loss
+            #     })
 
             # After exiting the loop, ensure all entries in trade_log have 'Win/Loss' key
             for trade in trade_log:
@@ -217,20 +217,20 @@ class EMACrossStrategyRipple1hr(TradingStrategy):
                     })
 
         # Check for any open trades on the last day
-        if position > 0:
-            last_row = df.iloc[-1]
-            sell_price = last_row['Close']
-            capital = position * sell_price
-            profit_loss = sell_price - buy_price
-            profit_percentage = (profit_loss / buy_price) * 100
-            win_loss = 'Win' if profit_loss > 0 else 'Loss'
-            trade_log[-1].update({
-                'Sell Time': last_row['Datetime'],
-                'Sell Price': sell_price,
-                'Profit/Loss': profit_loss,
-                'Profit Percentage': profit_percentage,
-                'Win/Loss': win_loss
-            })
+        # if position > 0:
+        #     last_row = df.iloc[-1]
+        #     sell_price = last_row['Close']
+        #     capital = position * sell_price
+        #     profit_loss = sell_price - buy_price
+        #     profit_percentage = (profit_loss / buy_price) * 100
+        #     win_loss = 'Win' if profit_loss > 0 else 'Loss'
+        #     trade_log[-1].update({
+        #         'Sell Time': last_row['Datetime'],
+        #         'Sell Price': sell_price,
+        #         'Profit/Loss': profit_loss,
+        #         'Profit Percentage': profit_percentage,
+        #         'Win/Loss': win_loss
+        #     })
 
         # After exiting the loop, ensure all entries in trade_log have 'Win/Loss' key
         for trade in trade_log:

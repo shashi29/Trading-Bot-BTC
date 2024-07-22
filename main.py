@@ -75,6 +75,7 @@ class StockAnalysisApp:
     def __init__(self, analyzer: StockAnalyzer):
         self.analyzer = analyzer
         self.buy_summary = []
+        self.config = config
 
 
     def run(self):
@@ -85,8 +86,8 @@ class StockAnalysisApp:
         self.sidebar_controls()
 
         # Main content area
-        tab1, tab2, tab3 = st.tabs([
-            "Overview", "Stock Scanner", "Real-time Monitoring"
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "Overview", "Stock Scanner", "Strategy-Analysis", "Real-time Monitoring"
         ])
 
         with tab1:
@@ -94,6 +95,8 @@ class StockAnalysisApp:
         with tab2:
             self.stock_scanner_tab()
         with tab3:
+            self.stock_strategy_analysis()
+        with tab4:
             self.realtime_monitoring_tab()
 
 
@@ -106,8 +109,6 @@ class StockAnalysisApp:
             ["Wave", "Ripple", "EMA"],
             default=["Wave", "Ripple", "EMA"]
         )
-        self.view_option = st.sidebar.radio(
-        "Select View:",["Detailed Metrics", "Buy Summary DataFrame"])
 
     def overview_tab(self):
         st.header("Market Overview")
@@ -162,23 +163,84 @@ class StockAnalysisApp:
         return df_active
     
     
+    def stock_strategy_analysis(self):
+        st.header("Stock Scanner")
+        tickers = st.text_area("Enter Stock Tickers (comma-separated):", "RELIANCE, INFY",  key="text_area_2")
+        flag_date = st.date_input("Select Date", key="text_area_3")
+        
+        if st.button("Scan Strategy"):
+            self.scan_stocks(tickers, flag_date, display_strategy=1)            
+            buy_summary_df = pd.DataFrame(self.buy_summary)
+            st.subheader("Buy Summary")
+            st.dataframe(buy_summary_df)
     
     def stock_scanner_tab(self):
         st.header("Stock Scanner")
-        tickers = st.text_area("Enter Stock Tickers (comma-separated):", "RELIANCE, INFY")
-        flag_date = st.date_input("Select Date")
+        tickers = st.text_area("Enter Stock Tickers (comma-separated):", "RELIANCE, INFY",  key="text_area_1")
+        flag_date = st.date_input("Select Date", key="text_area_4")
         
         if st.button("Scan Stocks"):
             self.scan_stocks(tickers, flag_date)
+
+    def create_action_dataframe(self, df):
+        # Initialize an empty list to store the new rows
+        rows = []
+        
+        # Define the current time
+        current_time = datetime.datetime.now()
+        
+        # Iterate over each row in the DataFrame
+        for _, row in df.iterrows():
+            # Determine the buy action
+            if row['Buy Time'] <= current_time:
+                rows.append({'Ticker': row['Ticker'], 'Buy/Sell Time': row['Buy Time'], 'Action': 'Buy'})
+            
+            # Determine the sell action
+            if pd.notna(row['Sell Time']) and row['Sell Time'] <= current_time:
+                rows.append({'Ticker': row['Ticker'], 'Buy/Sell Time': row['Sell Time'], 'Action': 'Sell'})
+        
+        # Create a new DataFrame from the rows
+        action_df = pd.DataFrame(rows)
+        
+        return action_df
 
     def realtime_monitoring_tab(self):
         st.header("Real-time Monitoring")
         st.write("This tab will display real-time updates for selected stocks and signals.")
         # Placeholder for real-time monitoring
+        tickers = self.config.NIFITY_FIFITY_STOCKS
+        tickers_list = [ticker.strip() + ".NS" for ticker in tickers]
+        flag_date = st.date_input("Select Date", key="text_area_5")
+        day_trade_log = list()
+        for ticker in tickers_list:
+            try:
+                with st.spinner(f"Scanning {ticker}..."):
+                    daily_data, daily_wave = self.analyzer.analyze_stock(
+                        ticker, flag_date, "1mo", "1d", "1mo", "1h", "1mo", "15m", self.setting
+                    )
+                if daily_data['Ripple_Status'].any():
+                    for strategy_name in self.strategies:
+                        strategy = self.get_strategy(strategy_name)
+                        trade_log, win_ratio, profit_percentage = strategy.execute(daily_data, daily_wave)
+                        trade_log['Ticker'] = ticker
+                        trade_log['Strategy Name'] = strategy_name
+                        if 'Sell Time' not in trade_log.columns:
+                            trade_log['Sell Time'] = ""
+                        if "Sell Price" not in trade_log.columns:
+                            trade_log['Sell Price'] = ""
+                        trade_log = trade_log[['Ticker', 'Buy Time', 'Buy Price', 'Sell Time', 'Sell Price']]
+                        day_trade_log.append(trade_log)
+            except Exception as e:
+                logger.error(f"Error analyzing stock {ticker}: {str(e)}", exc_info=True)
+                continue
+        if len(day_trade_log):
+            combined_df = pd.concat(day_trade_log, ignore_index=True)
+            #action_df = self.create_action_dataframe(combined_df)
+            #st.dataframe(action_df)
+            combined_df.sort_values("Buy Time", ascending=False, inplace=True)
+            st.dataframe(combined_df)
 
-
-
-    def scan_stocks(self, tickers: str, flag_date: datetime.date):
+    def  scan_stocks(self, tickers: str, flag_date: datetime.date, display_strategy: bool=0):
         tickers_list = [ticker.strip() + ".NS" for ticker in tickers.split(",")]
         results_placeholder = st.empty()
 
@@ -189,7 +251,10 @@ class StockAnalysisApp:
                         ticker, flag_date, "1mo", "1d", "1mo", "1h", "1mo", "15m", self.setting
                     )
                 if daily_data['Ripple_Status'].any():
-                    self.display_stock_analysis(ticker, flag_date, daily_data, daily_wave)
+                    if display_strategy:
+                        self.display_stock_strategy_output(ticker, flag_date, daily_data, daily_wave)    
+                    else:
+                        self.display_stock_analysis(ticker, flag_date, daily_data, daily_wave)
                 else:
                     results_placeholder.write(f"No buy signals detected for {ticker} on {flag_date}.")
             except Exception as e:
@@ -207,6 +272,17 @@ class StockAnalysisApp:
             logger.error(f"Error analyzing stock {ticker}: {str(e)}", exc_info=True)
             st.error(f"Error processing {ticker}. Check logs for details.")
 
+    def display_stock_strategy_output(self, ticker: str, flag_date: datetime.date, daily_data: pd.DataFrame, daily_wave: pd.DataFrame):
+        for strategy_name in self.strategies:
+            strategy = self.get_strategy(strategy_name)
+            trade_log, win_ratio, profit_percentage = strategy.execute(daily_data, daily_wave)
+            self.buy_summary.append({
+                "Ticker": ticker,
+                "Strategy": strategy_name,
+                "Win Ratio": win_ratio,
+                "Profit Percentage": profit_percentage
+            })
+            
     def display_stock_analysis(self, ticker: str, flag_date: datetime.date, daily_data: pd.DataFrame, daily_wave: pd.DataFrame):
         st.header(f"Analysis for {ticker}")
 
@@ -224,39 +300,24 @@ class StockAnalysisApp:
             st.dataframe(daily_wave)
 
         with tab3:            
-            if self.view_option == "Detailed Metrics":
-                for strategy_name in self.strategies:
-                    strategy = self.get_strategy(strategy_name)
-                    trade_log, win_ratio, profit_percentage = strategy.execute(daily_data, daily_wave)
-                    
-                    st.subheader(f"{strategy_name} Strategy Results")
-                    st.dataframe(trade_log)
-                    
-                    col1, col2 = st.columns(2)
-                    col1.metric("Win Ratio", f"{win_ratio:.2f}%")
-                    col2.metric("Profit Percentage", f"{profit_percentage:.2f}%")
-                    
-                    self.buy_summary.append({
-                        "Ticker": ticker,
-                        "Strategy": strategy_name,
-                        "Win Ratio": win_ratio,
-                        "Profit Percentage": profit_percentage
-                    })
+            for strategy_name in self.strategies:
+                strategy = self.get_strategy(strategy_name)
+                trade_log, win_ratio, profit_percentage = strategy.execute(daily_data, daily_wave)
                 
-            elif self.view_option == "Buy Summary DataFrame":
-                for strategy_name in self.strategies:
-                    strategy = self.get_strategy(strategy_name)
-                    trade_log, win_ratio, profit_percentage = strategy.execute(daily_data, daily_wave)
-                    self.buy_summary.append({
-                        "Ticker": ticker,
-                        "Strategy": strategy_name,
-                        "Win Ratio": win_ratio,
-                        "Profit Percentage": profit_percentage
-                    })
-                buy_summary_df = pd.DataFrame(self.buy_summary)
-                st.subheader("Buy Summary")
-                st.dataframe(buy_summary_df)
-        
+                st.subheader(f"{strategy_name} Strategy Results")
+                st.dataframe(trade_log)
+                
+                col1, col2 = st.columns(2)
+                col1.metric("Win Ratio", f"{win_ratio:.2f}%")
+                col2.metric("Profit Percentage", f"{profit_percentage:.2f}%")
+                
+                self.buy_summary.append({
+                    "Ticker": ticker,
+                    "Strategy": strategy_name,
+                    "Win Ratio": win_ratio,
+                    "Profit Percentage": profit_percentage
+                })
+                        
 
 
     def get_strategy(self, strategy_name: str):

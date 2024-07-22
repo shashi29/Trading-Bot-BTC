@@ -93,7 +93,7 @@ class ExcelWriter:
         df_Tide, df_Wave, df_Ripple = data['Tide'], data['Wave'], data['Ripple']
         explanations = ExcelWriter.generate_column_explanations()
 
-        with pd.ExcelWriter(f'report/{ticker}_report.xlsx') as writer:
+        with pd.ExcelWriter(f'./report/{ticker}_report.xlsx') as writer:
             df_Tide.to_excel(writer, sheet_name='Tide', index=False)
             df_Wave.to_excel(writer, sheet_name='Wave', index=False)
             df_Ripple.to_excel(writer, sheet_name='Ripple', index=False)        
