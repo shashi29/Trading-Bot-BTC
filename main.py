@@ -330,6 +330,7 @@ class StockAnalysisApp:
         else:
             raise ValueError(f"Unknown strategy: {strategy_name}")
 
+
 def main():
     try:
         scanner = StockScanner(config)
